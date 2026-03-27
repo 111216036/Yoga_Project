@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 瑜珈 & 深蹲追蹤器</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; }
+        h1 { margin: 20px 0; color: #333; }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background-color: #007bff; color: white; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+        button.active { background-color: #0056b3; }
+        .container { position: relative; width: 640px; height: 480px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; background-color: #333; }
+        video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+        canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+        #feedback-area { position: fixed; bottom: 20px; right: 20px; background-color: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; max-width: 250px; text-align: left; }
+        #mode-display { position: fixed; top: 70px; left: 20px; font-weight: bold; font-size: 1.2rem; color: cyan; background-color: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; }
+        .perfect { color: limegreen; font-size: 2rem; font-weight: bold; }
+        .error { color: red; margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>AI 瑜珈 & 深蹲追蹤器</h1>
+
+    <div class="controls">
+        <button onclick="setMode('Warrior_1')" id="btn-warrior" class="active">1: 戰士一式</button>
+        <button onclick="setMode('Squat')" id="btn-squat">2: 深蹲</button>
+    </div>
+
+    <div class="container">
+        <video id="input-video" playsinline></video>
+        <canvas id="output-canvas"></canvas>
+        <div id="mode-display">模式: 戰士一式</div>
+    </div>
+
+    <div id="feedback-area">
+        <div id="status-text">正在初始化...</div>
+        <div id="pose-results"></div>
+    </div>
+
+    <script type="module">
+        const videoElement = document.getElementById('input-video');
+        const canvasElement = document.getElementById('output-canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const poseResultsDiv = document.getElementById('pose-results');
+        const statusTextDiv = document.getElementById('status-text');
+        const modeDisplayDiv = document.getElementById('mode-display');
+
+        // 設定畫布解析度 (可視情況調整)
+        canvasElement.width = 640;
+        canvasElement.height = 480;
+
+        // 全域變數：目前模式
+        let currentMode = "Warrior_1";
+
+        // ==========================================
+        // 1. 資料庫與計算逻辑 (由 Python 翻譯)
+        // ==========================================
+        
+        // 資料庫：由 Python 移植，注意：JavaScript 陣列索引是從 0 開始
+        const YOGA_DATABASE = {
+            "Warrior_1": [
+                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg_low: "打直左手!", msg_high: "", msg_correct: "完美左手!" },
+                { name: "R_Arm", joints: [12, 14, 16], min: 150, max: 180, msg_low: "打直右手!", msg_high: "", msg_correct: "完美右手!" },
+                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 110, msg_low: "站高一點點!", msg_high: "前膝更彎曲!", msg_correct: "完美左膝!" },
+                { name: "R_Knee", joints: [24, 26, 28], min: 150, max: 180, msg_low: "打直後腳!", msg_high: "", msg_correct: "完美右膝!" }
+            ],
+            "Squat": [
+                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 100, msg_low: "蹲低一點!", msg_high: "站高一點!", msg_correct: "完美左膝!" },
+                { name: "R_Knee", joints: [24, 26, 28], min: 70, max: 100, msg_low: "蹲低一點!", msg_high: "站高一點!", msg_correct: "完美右膝!" }
+            ]
+        };
+
+        // 計算角度函數 (由 Python arctan2 翻譯)
+        function calculateAngle(a, b, c) {
+            // 在 JS 裡，我們直接使用 dot product 計算，這比較適合 MediaPipe 的 3D 座標
+            // 或是使用 atan2 (這裡為了維持和 Python 一致的邏輯)
+            
+            const vectorAB = { x: a.x - b.x, y: a.y - b.y };
+            const vectorCB = { x: c.x - b.x, y: c.y - b.y };
+
+            const radians = Math.atan2(vectorCB.y, vectorCB.x) - Math.atan2(vectorAB.y, vectorAB.x);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            
+            if (angle > 180.0) {
+                angle = 360 - angle;
+            }
+            return Math.round(angle);
+        }
+
+        // 姿勢評估函數
+        function evaluatePose(landmarks, poseName) {
+            const rules = YOGA_DATABASE[poseName] || [];
+            let feedbacks = [];
+            let perfectCount = 0;
+
+            for (const rule of rules) {
+                const p1 = landmarks[rule.joints[0]];
+                const p2 = landmarks[rule.joints[1]];
+                const p3 = landmarks[rule.joints[2]];
+
+                // MediaPipe 的 landmarks 是 0-1 的正規化座標
+                // 在這裡我們直接傳入 p1, p2, p3 物件，calculateAngle 函數會處理
+                const currentAngle = calculateAngle(p1, p2, p3);
+                
+                let feedbackText = `${rule.name}: (${currentAngle}°`;
+
+                if (currentAngle < rule.min && rule.msg_low !== "") {
+                    feedbacks.push({ text: `${rule.name}: ${rule.msg_low}`, type: 'error' });
+                } else if (currentAngle > rule.max && rule.msg_high !== "") {
+                    feedbacks.push({ text: `${rule.name}: ${rule.msg_high}`, type: 'error' });
+                } else {
+                    perfectCount++;
+                }
+            }
+            
+            return { feedbacks, perfectCount, totalRules: rules.length };
+        }
+
+        // ==========================================
+        // 2. 模式切換邏輯
+        // ==========================================
+        window.setMode = (mode) => {
+            currentMode = mode;
+            modeDisplayDiv.innerText = `模式: ${mode === "Warrior_1" ? "戰士一式" : "深蹲"}`;
+            
+            // 更新按鈕狀態
+            document.getElementById('btn-warrior').classList.toggle('active', mode === 'Warrior_1');
+            document.getElementById('btn-squat').classList.toggle('active', mode === 'Squat');
+        }
+
+        // ==========================================
+        // 3. MediaPipe 初始化與處理主迴圈
+        // ==========================================
+        
+        // 核心迴圈：處理 MediaPipe 回傳的結果
+        function onResults(results) {
+            statusTextDiv.innerText = "相機準備就緒";
+            poseResultsDiv.innerText = ""; // 清空上一次的結果
+            
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // 將影像繪製到畫布上
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // 如果有偵測到姿勢骨架
+            if (results.poseLandmarks) {
+                // 1. 繪製骨架到畫布上
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2, radius: 4});
+
+                // 2. 計算並顯示姿勢評估結果
+                try {
+                    const evalResults = evaluatePose(results.poseLandmarks, currentMode);
+                    
+                    if (evalResults.perfectCount === evalResults.totalRules) {
+                        // 如果所有規則都符合，顯示 PERFECT!
+                        poseResultsDiv.innerHTML = `<p class="perfect">PERFECT!</p>`;
+                    } else {
+                        // 否則顯示所有錯誤提示
+                        evalResults.feedbacks.forEach(error => {
+                            const errorPara = document.createElement('p');
+                            errorPara.innerText = error.text;
+                            errorPara.className = 'error';
+                            poseResultsDiv.appendChild(errorPara);
+                        });
+                    }
+                } catch (error) {
+                    // 如果計算失敗，顯示錯誤（可能是因為身體部分超出畫面）
+                    poseResultsDiv.innerText = "請確保身體完整顯示";
+                }
+            } else {
+                poseResultsDiv.innerText = "偵測不到身體";
+            }
+            canvasCtx.restore();
+        }
+
+        // 初始化 MediaPipe Pose 模型
+        const pose = new Pose({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+        }});
+        
+        pose.setOptions({
+            modelComplexity: 1, // 0: 快速, 1: 平衡, 2: 精準
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        pose.onResults(onResults);
+
+        // 初始化相機
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await pose.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        
+        // 開始相機
+        camera.start().catch(err => {
+            statusTextDiv.innerText = "請允許開啟相機以進行偵測";
+            poseResultsDiv.innerText = "";
+        });
+
+    </script>
+</body>
+</html>
