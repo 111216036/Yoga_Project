@@ -49,7 +49,8 @@
         <div class="controls">
             <button onclick="setMode('Warrior_1')" id="btn-warrior" class="active">1: 戰士一式</button>
             <button onclick="setMode('Squat')" id="btn-squat">2: 深蹲</button>
-            <button id="logout-btn" style="background-color: #6c757d;">登出</button>
+            <button onclick="setMode('Raise')" id="btn-raise">3: 平舉</button>
+            <button id="logout-btn" style="background-color: #6c757d; margin-left: 15px;">登出</button>
         </div>
 
         <div class="container">
@@ -69,7 +70,7 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
         import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
 
-        // Firebase 配置 (請保持你的配置不變)
+        // Firebase 配置
         const firebaseConfig = {
             apiKey: "AIzaSyAo11biuenUBUvSCGd2GACbO7WjIr0HTfc",
             authDomain: "yoga-project-9c8fe.firebaseapp.com",
@@ -86,7 +87,7 @@
         const provider = new GoogleAuthProvider();
 
         let currentUser = null;
-        let canSave = true; // 防止重複儲存的旗標
+        let canSave = true; 
 
         // ==========================================
         // 1. 登入邏輯
@@ -109,12 +110,11 @@
                 loginScreen.style.display = 'none';
                 mainApp.style.display = 'flex';
                 userDisplay.innerText = `使用者：${user.displayName} (${user.email})`;
-                camera.start(); // 登入後才啟動相機
+                camera.start(); 
             } else {
                 currentUser = null;
                 loginScreen.style.display = 'flex';
                 mainApp.style.display = 'none';
-                // 停止相機 (可選)
             }
         });
 
@@ -131,6 +131,7 @@
         canvasElement.height = 480;
         let currentMode = "Warrior_1";
 
+        // 更新資料庫：加入平舉 (Raise)
         const YOGA_DATABASE = {
             "Warrior_1": [
                 { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg: "左手伸直" },
@@ -141,6 +142,9 @@
             "Squat": [
                 { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 100, msg: "蹲低一點" },
                 { name: "R_Knee", joints: [24, 26, 28], min: 70, max: 100, msg: "蹲低一點" }
+            ],
+            "Raise": [
+                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg: "左手伸直" }
             ]
         };
 
@@ -153,20 +157,26 @@
 
         window.setMode = (mode) => {
             currentMode = mode;
-            document.getElementById('mode-display').innerText = `模式: ${mode === "Warrior_1" ? "戰士一式" : "深蹲"}`;
+            let modeName = "戰士一式";
+            if (mode === "Squat") modeName = "深蹲";
+            if (mode === "Raise") modeName = "平舉";
+            
+            document.getElementById('mode-display').innerText = `模式: ${modeName}`;
+            
+            // 更新按鈕的活躍狀態
             document.getElementById('btn-warrior').classList.toggle('active', mode === 'Warrior_1');
             document.getElementById('btn-squat').classList.toggle('active', mode === 'Squat');
-            canSave = true; // 切換模式時重置儲存權限
+            document.getElementById('btn-raise').classList.toggle('active', mode === 'Raise');
+            
+            canSave = true; 
         };
 
-        // 【自動儲存函數】
         function autoSaveToFirebase() {
             if (!currentUser || !canSave) return;
             
-            canSave = false; // 立刻鎖定，避免同一秒存 30 次
+            canSave = false; 
             const timestamp = new Date().toLocaleString();
             
-            // 存儲路徑：以使用者的 UID 為目錄名，增加安全性與結構化
             const recordRef = ref(db, `user_progress/${currentUser.uid}`);
             const newRecordRef = push(recordRef);
             
@@ -179,7 +189,6 @@
             }).then(() => {
                 saveStatusDiv.innerText = `✅ 已自動存檔 (${new Date().toLocaleTimeString()})`;
                 saveStatusDiv.style.color = "green";
-                // 3 秒後才允許下一次自動存檔，或者你可以設定成動作變壞再變好才存
                 setTimeout(() => { canSave = true; }, 3000); 
             });
         }
@@ -210,7 +219,7 @@
 
                 if (perfectCount === rules.length) {
                     poseResultsDiv.innerHTML = `<p class="perfect">PERFECT!</p>`;
-                    autoSaveToFirebase(); // <--- 達成完美，觸發自動存檔
+                    autoSaveToFirebase(); 
                 } else {
                     poseResultsDiv.innerHTML = errors.map(e => `<p class="error">${e}</p>`).join('');
                 }
