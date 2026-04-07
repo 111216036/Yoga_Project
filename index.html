@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 瑜珈 & 深蹲追蹤器</title>
+    <title>AI 瑜珈 & 深蹲追蹤系統 - 會員版</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -11,54 +11,65 @@
     
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; }
-        h1 { margin: 15px 0; color: #333; }
-        .controls, .firebase-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background-color: #007bff; color: white; transition: 0.2s; }
+        /* 登入畫面 */
+        #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        /* 主程式畫面 */
+        #main-app { display: none; flex-direction: column; align-items: center; width: 100%; padding-top: 20px; }
+        
+        h1 { color: #333; margin-bottom: 10px; }
+        .user-info { margin-bottom: 15px; font-weight: bold; color: #555; }
+        .controls { margin-bottom: 15px; display: flex; gap: 10px; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background-color: #007bff; color: white; transition: 0.2s; }
         button:hover { background-color: #0056b3; }
         button.active { background-color: #0056b3; }
-        input { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
-        .btn-save { background-color: #28a745; font-weight: bold; }
-        .btn-save:hover { background-color: #218838; }
-        .container { position: relative; width: 640px; height: 480px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; background-color: #333; }
+        
+        .container { position: relative; width: 640px; height: 480px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 10px; overflow: hidden; background-color: #000; }
         video, canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-        #feedback-area { position: fixed; bottom: 20px; right: 20px; background-color: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 8px; max-width: 250px; text-align: left; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        #mode-display { position: fixed; top: 130px; left: 20px; font-weight: bold; font-size: 1.2rem; color: cyan; background-color: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; }
-        .perfect { color: limegreen; font-size: 2rem; font-weight: bold; margin: 0; }
-        .error { color: red; margin: 5px 0; font-weight: bold; }
-        #db-status { font-size: 0.9rem; color: #666; margin-top: 5px; }
+        
+        #feedback-area { position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 8px; width: 220px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        #mode-display { position: fixed; top: 80px; left: 20px; font-weight: bold; color: cyan; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 5px; }
+        .perfect { color: #28a745; font-size: 2rem; font-weight: bold; }
+        .error { color: #dc3545; margin: 4px 0; font-size: 0.9rem; }
+        #save-status { font-size: 0.8rem; color: #666; margin-top: 10px; }
+        .btn-google { background-color: #db4437; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
-    <h1>AI 瑜珈 & 深蹲追蹤系統</h1>
-
-    <div class="firebase-controls">
-        <input type="text" id="username" placeholder="輸入使用者名稱" value="User01">
-        <button id="save-btn" class="btn-save">儲存 Perfect 紀錄至雲端</button>
+    <div id="login-screen">
+        <h1>AI 瑜珈動作偵測系統</h1>
+        <p>請先登入以記錄你的練習成果</p>
+        <button id="google-login-btn" class="btn-google">使用 Google 帳號登入</button>
     </div>
 
-    <div class="controls">
-        <button onclick="setMode('Warrior_1')" id="btn-warrior" class="active">1: 戰士一式</button>
-        <button onclick="setMode('Squat')" id="btn-squat">2: 深蹲</button>
-        <button onclick="setMode('Raise')" id="btn-raise">3: 舉手</button>
-    </div>
+    <div id="main-app">
+        <h1>AI 動作追蹤中</h1>
+        <div class="user-info" id="user-display">使用者：載入中...</div>
+        
+        <div class="controls">
+            <button onclick="setMode('Warrior_1')" id="btn-warrior" class="active">1: 戰士一式</button>
+            <button onclick="setMode('Squat')" id="btn-squat">2: 深蹲</button>
+            <button id="logout-btn" style="background-color: #6c757d;">登出</button>
+        </div>
 
-    <div class="container">
-        <video id="input-video" playsinline></video>
-        <canvas id="output-canvas"></canvas>
-        <div id="mode-display">模式: 戰士一式</div>
+        <div class="container">
+            <video id="input-video" playsinline></video>
+            <canvas id="output-canvas"></canvas>
+            <div id="mode-display">模式: 戰士一式</div>
+        </div>
     </div>
 
     <div id="feedback-area">
-        <div id="status-text">相機初始化中...</div>
-        <div id="pose-results"></div>
-        <div id="db-status"></div>
+        <div id="pose-results">等待偵測...</div>
+        <div id="save-status"></div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
         import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
 
+        // Firebase 配置 (請保持你的配置不變)
         const firebaseConfig = {
             apiKey: "AIzaSyAo11biuenUBUvSCGd2GACbO7WjIr0HTfc",
             authDomain: "yoga-project-9c8fe.firebaseapp.com",
@@ -70,69 +81,110 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getDatabase(app);
-        const dbStatus = document.getElementById('db-status');
+        const provider = new GoogleAuthProvider();
 
+        let currentUser = null;
+        let canSave = true; // 防止重複儲存的旗標
+
+        // ==========================================
+        // 1. 登入邏輯
+        // ==========================================
+        const loginScreen = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        const userDisplay = document.getElementById('user-display');
+
+        document.getElementById('google-login-btn').onclick = () => {
+            signInWithPopup(auth, provider).catch(err => alert("登入失敗: " + err.message));
+        };
+
+        document.getElementById('logout-btn').onclick = () => {
+            signOut(auth);
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loginScreen.style.display = 'none';
+                mainApp.style.display = 'flex';
+                userDisplay.innerText = `使用者：${user.displayName} (${user.email})`;
+                camera.start(); // 登入後才啟動相機
+            } else {
+                currentUser = null;
+                loginScreen.style.display = 'flex';
+                mainApp.style.display = 'none';
+                // 停止相機 (可選)
+            }
+        });
+
+        // ==========================================
+        // 2. AI 偵測與自動儲存邏輯
+        // ==========================================
         const videoElement = document.getElementById('input-video');
         const canvasElement = document.getElementById('output-canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const poseResultsDiv = document.getElementById('pose-results');
-        const modeDisplayDiv = document.getElementById('mode-display');
+        const saveStatusDiv = document.getElementById('save-status');
         
         canvasElement.width = 640;
         canvasElement.height = 480;
         let currentMode = "Warrior_1";
-        let isPerfectNow = false;
 
         const YOGA_DATABASE = {
             "Warrior_1": [
-                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg_low: "打直左手!", msg_high: "" },
-                { name: "R_Arm", joints: [12, 14, 16], min: 150, max: 180, msg_low: "打直右手!", msg_high: "" },
-                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 110, msg_low: "站高一點!", msg_high: "前膝更彎曲!" },
-                { name: "R_Knee", joints: [24, 26, 28], min: 150, max: 180, msg_low: "打直後腳!", msg_high: "" }
+                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg: "左手伸直" },
+                { name: "R_Arm", joints: [12, 14, 16], min: 150, max: 180, msg: "右手伸直" },
+                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 110, msg: "調整左膝角度" },
+                { name: "R_Knee", joints: [24, 26, 28], min: 150, max: 180, msg: "後腿打直" }
             ],
             "Squat": [
-                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 100, msg_low: "蹲低一點!", msg_high: "站高一點!" },
-                { name: "R_Knee", joints: [24, 26, 28], min: 70, max: 100, msg_low: "蹲低一點!", msg_high: "站高一點!" }
-            ],
-            // 新增 Raise 動作
-            "Raise": [
-                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg_low: "Straighten left arm!", msg_high: "" }
+                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 100, msg: "蹲低一點" },
+                { name: "R_Knee", joints: [24, 26, 28], min: 70, max: 100, msg: "蹲低一點" }
             ]
         };
 
         function calculateAngle(a, b, c) {
-            const vectorAB = { x: a.x - b.x, y: a.y - b.y };
-            const vectorCB = { x: c.x - b.x, y: c.y - b.y };
-            const radians = Math.atan2(vectorCB.y, vectorCB.x) - Math.atan2(vectorAB.y, vectorAB.x);
+            const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
             let angle = Math.abs(radians * 180.0 / Math.PI);
             if (angle > 180.0) angle = 360 - angle;
             return Math.round(angle);
         }
 
-        // 修改後的 setMode 邏輯
         window.setMode = (mode) => {
             currentMode = mode;
-            const modeMap = {
-                "Warrior_1": "戰士一式",
-                "Squat": "深蹲",
-                "Raise": "舉手"
-            };
-            modeDisplayDiv.innerText = `模式: ${modeMap[mode]}`;
-            
-            // 更新按鈕樣式
+            document.getElementById('mode-display').innerText = `模式: ${mode === "Warrior_1" ? "戰士一式" : "深蹲"}`;
             document.getElementById('btn-warrior').classList.toggle('active', mode === 'Warrior_1');
             document.getElementById('btn-squat').classList.toggle('active', mode === 'Squat');
-            document.getElementById('btn-raise').classList.toggle('active', mode === 'Raise');
-            
-            isPerfectNow = false;
+            canSave = true; // 切換模式時重置儲存權限
         };
 
-        function onResults(results) {
-            document.getElementById('status-text').innerText = "";
-            poseResultsDiv.innerText = ""; 
-            isPerfectNow = false;
+        // 【自動儲存函數】
+        function autoSaveToFirebase() {
+            if (!currentUser || !canSave) return;
             
+            canSave = false; // 立刻鎖定，避免同一秒存 30 次
+            const timestamp = new Date().toLocaleString();
+            
+            // 存儲路徑：以使用者的 UID 為目錄名，增加安全性與結構化
+            const recordRef = ref(db, `user_progress/${currentUser.uid}`);
+            const newRecordRef = push(recordRef);
+            
+            set(newRecordRef, {
+                userName: currentUser.displayName,
+                userEmail: currentUser.email,
+                pose: currentMode,
+                time: timestamp,
+                score: "PERFECT"
+            }).then(() => {
+                saveStatusDiv.innerText = `✅ 已自動存檔 (${new Date().toLocaleTimeString()})`;
+                saveStatusDiv.style.color = "green";
+                // 3 秒後才允許下一次自動存檔，或者你可以設定成動作變壞再變好才存
+                setTimeout(() => { canSave = true; }, 3000); 
+            });
+        }
+
+        function onResults(results) {
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
@@ -141,75 +193,40 @@
                 drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
                 drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2, radius: 4});
 
-                const rules = YOGA_DATABASE[currentMode] || [];
+                const rules = YOGA_DATABASE[currentMode];
                 let perfectCount = 0;
-                let feedbacks = [];
+                let errors = [];
 
                 rules.forEach(rule => {
                     const p1 = results.poseLandmarks[rule.joints[0]];
                     const p2 = results.poseLandmarks[rule.joints[1]];
                     const p3 = results.poseLandmarks[rule.joints[2]];
-                    
                     if(p1 && p2 && p3) {
                         const angle = calculateAngle(p1, p2, p3);
-                        if (angle < rule.min && rule.msg_low) feedbacks.push(`${rule.name}: ${rule.msg_low} (${angle}°)`);
-                        else if (angle > rule.max && rule.msg_high) feedbacks.push(`${rule.name}: ${rule.msg_high} (${angle}°)`);
+                        if (angle < rule.min || angle > rule.max) errors.push(rule.msg);
                         else perfectCount++;
                     }
                 });
 
-                if (perfectCount === rules.length && rules.length > 0) {
+                if (perfectCount === rules.length) {
                     poseResultsDiv.innerHTML = `<p class="perfect">PERFECT!</p>`;
-                    isPerfectNow = true;
+                    autoSaveToFirebase(); // <--- 達成完美，觸發自動存檔
                 } else {
-                    feedbacks.forEach(err => {
-                        const p = document.createElement('p');
-                        p.innerText = err; p.className = 'error';
-                        poseResultsDiv.appendChild(p);
-                    });
+                    poseResultsDiv.innerHTML = errors.map(e => `<p class="error">${e}</p>`).join('');
                 }
-            } else {
-                poseResultsDiv.innerText = "偵測不到身體";
             }
             canvasCtx.restore();
         }
 
-        document.getElementById('save-btn').addEventListener('click', () => {
-            if (!isPerfectNow) {
-                dbStatus.innerText = "請先維持 Perfect 姿勢再儲存！";
-                dbStatus.style.color = "red";
-                return;
-            }
-
-            const username = document.getElementById('username').value.trim() || "Anonymous";
-            const timestamp = new Date().toLocaleString();
-            
-            const recordRef = ref(db, 'yoga_records/' + username);
-            const newRecordRef = push(recordRef);
-            
-            set(newRecordRef, {
-                pose: currentMode,
-                status: "Perfect",
-                time: timestamp
-            }).then(() => {
-                dbStatus.innerText = `成功紀錄 ${username} 的 ${currentMode} !`;
-                dbStatus.style.color = "green";
-            }).catch((error) => {
-                dbStatus.innerText = "儲存失敗：" + error.message;
-                dbStatus.style.color = "red";
-            });
-        });
-
         const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-        pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        pose.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         pose.onResults(onResults);
 
         const camera = new Camera(videoElement, {
             onFrame: async () => { await pose.send({image: videoElement}); },
             width: 640, height: 480
         });
-        camera.start();
-
+        
     </script>
 </body>
 </html>
