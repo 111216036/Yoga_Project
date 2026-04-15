@@ -1,0 +1,45 @@
+/* 讓所有元件在計算寬度時包含內距 */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+/* 攝影機與畫布的容器 */
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 640px; /* 電腦版最大寬度 */
+  margin: 10px auto;
+}
+
+video, canvas {
+  width: 100%;    /* 自動適應父容器寬度 */
+  height: auto;   /* 保持比例，不變形 */
+  border-radius: 8px;
+}
+/* 當螢幕寬度小於 768px 時觸發 */
+@media (max-width: 768px) {
+  .video-container {
+    width: 95vw; /* 手機版佔據螢幕寬度的 95% */
+  }
+
+  .btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 按鈕變成兩兩一排，比較好按 */
+    gap: 10px;
+    width: 95%;
+  }
+
+  button {
+    padding: 15px; /* 加大按鈕點擊區域 */
+    font-size: 18px;
+  }
+}
