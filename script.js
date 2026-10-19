@@ -465,7 +465,6 @@ function showPoseUI(poseId) {
 // ==========================================
 // 🌟 11. 幾何運算
 // ==========================================
-// ✅ 修正：MediaPipe 座標是 0~1 的正規化值，x、y 的實際比例不同（800x450），
 //    必須先換成像素座標再算角度，否則角度會失真。
 function calculateAngle(a, b, c) {
     const W = canvasElement?.width || 800;
@@ -483,7 +482,6 @@ function calculateAngle(a, b, c) {
 // ==========================================
 // 🌟 12. 語音提示系統
 // ==========================================
-// 設計重點：
 // 1. 每一幀先把「這一幀的所有錯誤」收集起來 (queueHint)，幀結束時才挑一句念 (flushHints)
 // 2. 挑「最久沒念過」的那句，所以手臂和腿部的錯誤會輪流提醒，不會只念到第一個
 // 3. 同一句話有重複間隔，不會一直唸同樣的話
@@ -587,7 +585,7 @@ function resetHold() {
 // 回傳：null = 目前不是完美姿勢；0 = 已達標；正整數 = 還需維持的秒數
 function updateHold(isPerfect, poseNameChinese) {
     if (!isPerfect) {
-        resetHold();   // ✅ 三個動作都統一重置（原本深蹲漏了 hasSavedThisRep）
+        resetHold();
         return null;
     }
 
@@ -630,14 +628,14 @@ function analyzeTree(lm) {
         if (supportAngle < 150) {
             setText(legStatusDiv, `錯誤：支撐腳（${supportName}腳）請伸直！`, COLOR_ERR);
             isLegError = true;
-            queueHint("支撐腳請伸直");
+            queueHint("支撐腳（${supportName}腳）請伸直！");
         } else {
             setText(legStatusDiv, `腿部 PERFECT！(${supportName}腳站穩，${liftName}腳抬起)`, COLOR_OK);
         }
     } else {
-        setText(legStatusDiv, "請單腳站穩，另一腳曲膝抬高貼於腿側", COLOR_ERR);
+        setText(legStatusDiv, "請單腳站立，另一腳曲膝抬高貼於腿側", COLOR_ERR);
         isLegError = true;
-        queueHint("請單腳站立，另一腳曲膝貼於腿側");
+        queueHint("請單腳站立，另一腳曲膝抬高貼於腿側");
     }
 
     // ---- 手臂 ----
@@ -650,7 +648,7 @@ function analyzeTree(lm) {
 
     if (isOverhead) {
         if (leftElbowAngle < 125 || rightElbowAngle < 125) {
-            setText(armStatusDiv, "錯誤：雙手高舉時請伸直手肘！", COLOR_ERR);
+            setText(armStatusDiv, "錯誤：雙手高舉時手肘請打直！", COLOR_ERR);
             isArmError = true;
             queueHint("雙手高舉時手肘請打直");
         } else {
@@ -674,7 +672,7 @@ function analyzeTree(lm) {
     }
 }
 
-// 深蹲：自動選「比較看得清楚」的那一側來判斷（原本固定用右側）
+// 深蹲
 function pickBodySide(lm) {
     const vis = (idxs) => idxs.reduce((sum, i) => sum + (lm[i]?.visibility ?? 0), 0);
     return vis([12, 24, 26, 28]) >= vis([11, 23, 25, 27]) ? 'R' : 'L';
@@ -737,10 +735,10 @@ function analyzeRaise(lm) {
     if (leftArmRaise < RAISE.bothTooLow && rightArmRaise < RAISE.bothTooLow) {
         messages.push("請將雙臂向兩側抬起至肩膀高度");
     } else if (leftArmRaise > RAISE.tooHigh || rightArmRaise > RAISE.tooHigh) {
-        messages.push("手臂抬太高囉，與肩膀平行即可");
+        messages.push("手臂抬太高了，與肩膀平行即可");
     } else {
-        if (leftArmRaise < RAISE.minRaise) messages.push("左手請再抬高一些");
-        if (rightArmRaise < RAISE.minRaise) messages.push("右手請再抬高一些");
+        if (leftArmRaise < RAISE.minRaise) messages.push("左手再抬高一些");
+        if (rightArmRaise < RAISE.minRaise) messages.push("右手再抬高一些");
     }
 
     if (messages.length === 0) {
@@ -752,7 +750,6 @@ function analyzeRaise(lm) {
 
     if (!isPerfect) {
         if (poseResultsDiv) {
-            // pose-results 是 <span>，裡面不放 <div>，改用 <span> + <br> 換行
             poseResultsDiv.innerHTML = messages
                 .map(msg => `<span style="color: var(--error-text, #e8435a);">${msg}</span>`)
                 .join('<br>');
