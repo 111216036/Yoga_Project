@@ -2,212 +2,219 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 瑜珈 & 深蹲追蹤系統 - 會員版</title>
-    
-    <link rel="stylesheet" href="style.css">
-    
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Yoga Master - 智能瑜伽綜合版</title>
 
-    <style>
-        #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        #main-app { display: none; flex-direction: column; align-items: center; width: 100%; padding-top: 20px; }
-    </style>
+    <!-- MediaPipe 函式庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js" crossorigin="anonymous"></script>
+
+    <!-- 圖表函式庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="script.js"></script>
 </head>
 <body>
 
-    <div id="login-screen">
-        <h1>AI 瑜珈動作偵測系統</h1>
-        <p>請先登入以記錄你的練習成果</p>
-        <button id="google-login-btn" class="btn-google">使用 Google 帳號登入</button>
-    </div>
-
-    <div id="main-app">
-        <h1>AI 動作追蹤中</h1>
-        <div class="user-info" id="user-display">使用者：載入中...</div>
-        
-        <div class="controls">
-            <button onclick="setMode('Warrior_1')" id="btn-warrior" class="active">1: 戰士一式</button>
-            <button onclick="setMode('Squat')" id="btn-squat">2: 深蹲</button>
-            <button onclick="setMode('Raise')" id="btn-raise">3: 平舉</button>
-            <button id="logout-btn" style="background-color: #6c757d; margin-left: 15px;">登出</button>
+    <!-- 1. 登入與歡迎畫面 -->
+    <div id="landing-page">
+        <!-- 背景動態光暈光球裝飾 -->
+        <div class="landing-bg-decorations">
+            <span class="glow-orb orb-1"></span>
+            <span class="glow-orb orb-2"></span>
+            <span class="glow-orb orb-3"></span>
         </div>
 
-        <div class="video-container">
-            <video id="input-video" playsinline muted autoplay></video>
-            <canvas id="output-canvas"></canvas>
-            <div id="mode-display">模式: 戰士一式</div>
+        <!-- 登入核心卡片 (毛玻璃質感) -->
+        <div class="landing-glass-card">
+            <!-- 瑜珈呼吸動態圖標 -->
+            <div class="yoga-badge-icon">
+                <span class="yoga-emoji">🧘‍♀️</span>
+            </div>
+
+            <div class="tag-pill">AI 智能姿態校正系統</div>
+            <h1 class="hero-title">AI Yoga Master</h1>
+            <p id="user-welcome" class="hero-subtitle">探索身心平衡，開啟你的專屬智能瑜珈旅程</p>
+
+            <!-- 亮點標籤列 -->
+            <div class="hero-features">
+                <span class="feat-chip">✨ 即時關節分析</span>
+                <span class="feat-chip">📊 每日練習紀錄</span>
+                <span class="feat-chip">🏆 榮譽段位榜</span>
+            </div>
+
+            <!-- 按鈕區 -->
+            <div class="action-btn-group">
+                <button id="login-btn" class="start-btn btn-google-card">
+                    <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span>使用 Google 帳號登入</span>
+                </button>
+
+                <!-- 登入成功後自動顯現的開始按鈕 -->
+                <button id="start-btn" class="start-btn btn-explore" style="display: none;">
+                    開始今日修煉 ➔
+                </button>
+            </div>
+
+            <div class="landing-footer-hint">
+                <span>🔒 本地鏡頭運算 · 保護隱私不留存影像</span>
+            </div>
         </div>
     </div>
 
-    <div id="feedback-area">
-        <div id="pose-results">等待偵測...</div>
-        <div id="save-status"></div>
+    <!-- 2. 首頁大廳 (Home View) -->
+    <div id="home-view" style="display: none;">
+        <!-- 上方功能導覽列 -->
+        <header class="top-navbar">
+            <div class="nav-brand">
+                <h2>🧘 AI Yoga Master</h2>
+                <span id="user-display" class="user-badge">使用者：載入中...</span>
+            </div>
+            <div class="nav-actions">
+                <button id="btn-profile" class="nav-btn btn-purple">👤 個人中心</button>
+                <button id="toggle-history-btn" class="nav-btn btn-gray">📜 歷史紀錄</button>
+                <button id="toggle-leaderboard-btn" class="nav-btn btn-orange">🏆 全球排行榜</button>
+                <button id="logout-btn" class="nav-btn btn-danger">🚪 登出</button>
+            </div>
+        </header>
+
+        <!-- 彈出抽屜區塊 (個人中心 / 歷史紀錄 / 排行榜) -->
+        <div id="overlay-panels-container">
+            <!-- 個人中心 -->
+            <div id="profile-container" class="dashboard-panel" style="display: none;">
+                <h2>👤 我的瑜珈專屬檔案</h2>
+                <div class="profile-card">
+                    <!-- referrerpolicy 可避免 Google 大頭貼因來源檢查而載入失敗 -->
+                    <img id="profile-avatar" src="" alt="Avatar" referrerpolicy="no-referrer">
+                    <div>
+                        <h3 id="profile-name">載入中...</h3>
+                        <span id="profile-rank" class="rank-tag">判定中...</span>
+                    </div>
+                </div>
+                <div class="profile-stats-grid">
+                    <div class="stat-box"><div>累積積分</div><strong id="profile-total-score">0</strong></div>
+                    <div class="stat-box"><div>練習天數</div><strong id="profile-days-count">0</strong></div>
+                    <div class="stat-box"><div>Perfect 總數</div><strong id="profile-perfect-count">0</strong></div>
+                </div>
+                <div class="chart-wrapper" style="width: 280px; margin: 0 auto;">
+                    <canvas id="posePreferenceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 歷史紀錄 -->
+            <div id="history-container" class="dashboard-panel" style="display: none;">
+                <h2>📊 我的練習進度 (最近 7 次)</h2>
+                <canvas id="historyChart"></canvas>
+                <h3 style="margin-top: 20px;">📜 歷史明細</h3>
+                <ul id="history-list" class="history-list"><li>載入中...</li></ul>
+            </div>
+
+            <!-- 全球排行榜 -->
+            <div id="leaderboard-container" class="dashboard-panel" style="display: none;">
+                <h2>🏆 全球瑜珈大師排行榜</h2>
+                <ul id="leaderboard-list" class="leaderboard-list"><li>載入中...</li></ul>
+            </div>
+        </div>
+
+        <!-- 下方動作卡片區域 (3 個動作) -->
+        <main class="actions-section">
+            <div class="section-title-wrap">
+                <h3>選擇訓練動作</h3>
+                <p>點擊動作卡片即可進入 AI 鏡頭偵測練習</p>
+            </div>
+            <div id="actions-grid" class="actions-grid">
+                <!-- 3 個動作卡片由 JS 動態生成 -->
+            </div>
+        </main>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-        import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+    <!-- 3. 訓練偵測室 (Workout View) -->
+    <div id="workout-view" class="workout-container" style="display: none;">
+        <!-- 左側控制面板 -->
+        <div class="left-control-panel">
+            <button id="btn-back-home" class="back-home-btn">⬅️ 返回動作選單</button>
 
-        // Firebase 配置 (保持不變)
-        const firebaseConfig = {
-            apiKey: "AIzaSyAo11biuenUBUvSCGd2GACbO7WjIr0HTfc",
-            authDomain: "yoga-project-9c8fe.firebaseapp.com",
-            databaseURL: "https://yoga-project-9c8fe-default-rtdb.firebaseio.com",
-            projectId: "yoga-project-9c8fe",
-            storageBucket: "yoga-project-9c8fe.firebasestorage.app",
-            messagingSenderId: "250399910686",
-            appId: "1:250399910686:web:bb9f0b98cb79b1eebc370f"
-        };
+            <div class="quick-switch-container">
+                <div class="dropdown-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <select id="quick-switch-select" class="quick-switch-dropdown">
+                        <option value="tree">大樹式</option>
+                        <option value="squat">深蹲</option>
+                        <option value="Raise">平舉</option>
+                    </select>
+                </div>
+                <button id="btn-tutorial" class="tutorial-btn">教學</button>
+            </div>
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getDatabase(app);
-        const provider = new GoogleAuthProvider();
+            <!-- 教學影片區塊 -->
+            <div id="tutorial-video-container" class="hidden-container">
+                <video id="tutorial-video" width="100%" controls playsinline></video>
+            </div>
+        </div>
 
-        let currentUser = null;
-        let canSave = true; 
+        <!-- 鏡頭與提示詞區域 (置中主畫面) -->
+        <div class="main-workout-area">
+            <h2 id="current-workout-title">動作練習室</h2>
 
-        const loginScreen = document.getElementById('login-screen');
-        const mainApp = document.getElementById('main-app');
-        const userDisplay = document.getElementById('user-display');
+            <div id="video-container">
+                <div id="loading">啟動鏡頭與 AI 模型中...</div>
+                <video id="video" width="800" height="450" autoplay playsinline muted></video>
+                <canvas id="canvas" width="800" height="450"></canvas>
+            </div>
 
-        document.getElementById('google-login-btn').onclick = () => {
-            signInWithPopup(auth, provider).catch(err => alert("登入失敗: " + err.message));
-        };
+            <!-- 鏡頭下方的提示詞 -->
+            <div id="status-display" class="bottom-status-display">
+                <div id="pose-title" class="status-heading">動作偵測中</div>
 
-        document.getElementById('logout-btn').onclick = () => {
-            signOut(auth);
-        };
+                <!-- 三個動作的提示區：預設只顯示大樹式，其餘由 script.js 的 showPoseUI() 切換 -->
+                <div id="tree-info" class="status-content">
+                    <span class="status-title">手部狀態：</span>
+                    <span id="arm-status" class="status-value">等待姿勢...</span>
+                    <br>
+                    <span class="status-title">腿部狀態：</span>
+                    <span id="leg-status" class="status-value">等待姿勢...</span>
+                </div>
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                loginScreen.style.display = 'none';
-                mainApp.style.display = 'flex';
-                userDisplay.innerText = `使用者：${user.displayName}`;
-                camera.start(); 
-            } else {
-                currentUser = null;
-                loginScreen.style.display = 'flex';
-                mainApp.style.display = 'none';
-            }
-        });
+                <div id="squat-info" class="status-content" style="display: none;">
+                    <span class="status-title">身體狀態：</span>
+                    <span id="squat-status" class="status-value">請開始深蹲</span>
+                </div>
 
-        const videoElement = document.getElementById('input-video');
-        const canvasElement = document.getElementById('output-canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const poseResultsDiv = document.getElementById('pose-results');
-        const saveStatusDiv = document.getElementById('save-status');
-        
-        // 修正：不要在這裡寫死 width/height，改由影片載入後動態決定像素大小
-        videoElement.onloadedmetadata = () => {
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
-        };
+                <div id="generic-info" class="status-content" style="display: none;">
+                    <span class="status-title">動作提示：</span>
+                    <span id="pose-results" class="status-value">等待偵測...</span>
+                </div>
 
-        let currentMode = "Warrior_1";
+                <div id="save-status" class="save-status-text"></div>
+            </div>
+        </div>
+    </div>
 
-        const YOGA_DATABASE = {
-            "Warrior_1": [
-                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg: "左手伸直" },
-                { name: "R_Arm", joints: [12, 14, 16], min: 150, max: 180, msg: "右手伸直" },
-                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 110, msg: "調整左膝角度" },
-                { name: "R_Knee", joints: [24, 26, 28], min: 150, max: 180, msg: "後腿打直" }
-            ],
-            "Squat": [
-                { name: "L_Knee", joints: [23, 25, 27], min: 70, max: 100, msg: "蹲低一點" },
-                { name: "R_Knee", joints: [24, 26, 28], min: 70, max: 100, msg: "蹲低一點" }
-            ],
-            "Raise": [
-                { name: "L_Arm", joints: [11, 13, 15], min: 150, max: 180, msg: "左手伸直" }
-            ]
-        };
+    <!-- 教學引導彈窗 (如果是從主選單進入前的彈窗，維持原樣) -->
+    <div id="intro-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h2 id="intro-title">動作名稱</h2>
+            <div id="intro-media-wrapper">
+                <video id="intro-video" autoplay loop muted playsinline style="display: none;"></video>
+                <img id="intro-image" alt="Pose Demonstration" style="display: none;">
+            </div>
+            <p id="intro-desc">動作簡介載入中...</p>
+            <ul id="intro-tips" class="intro-tips-list"></ul>
+            <button id="intro-start-btn" class="start-btn" style="margin-top: 15px;">我準備好了，開始倒數！</button>
+        </div>
+    </div>
 
-        function calculateAngle(a, b, c) {
-            const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-            let angle = Math.abs(radians * 180.0 / Math.PI);
-            if (angle > 180.0) angle = 360 - angle;
-            return Math.round(angle);
-        }
+    <!-- 3 秒倒數計時遮罩 -->
+    <div id="countdown-overlay" class="modal-overlay" style="display: none;">
+        <div id="countdown-number" class="countdown-bounce">3</div>
+    </div>
 
-        window.setMode = (mode) => {
-            currentMode = mode;
-            let modeName = (mode === "Squat") ? "深蹲" : (mode === "Raise") ? "平舉" : "戰士一式";
-            document.getElementById('mode-display').innerText = `模式: ${modeName}`;
-            document.getElementById('btn-warrior').classList.toggle('active', mode === 'Warrior_1');
-            document.getElementById('btn-squat').classList.toggle('active', mode === 'Squat');
-            document.getElementById('btn-raise').classList.toggle('active', mode === 'Raise');
-            canSave = true; 
-        };
-
-        function autoSaveToFirebase() {
-            if (!currentUser || !canSave) return;
-            canSave = false; 
-            const timestamp = new Date().toLocaleString();
-            const recordRef = ref(db, `user_progress/${currentUser.uid}`);
-            const newRecordRef = push(recordRef);
-            set(newRecordRef, {
-                userName: currentUser.displayName,
-                userEmail: currentUser.email,
-                pose: currentMode,
-                time: timestamp,
-                score: "PERFECT"
-            }).then(() => {
-                saveStatusDiv.innerText = `✅ 已自動存檔 (${new Date().toLocaleTimeString()})`;
-                setTimeout(() => { canSave = true; }, 5000); 
-            });
-        }
-
-        function onResults(results) {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-            if (results.poseLandmarks) {
-                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2, radius: 4});
-
-                const rules = YOGA_DATABASE[currentMode];
-                let perfectCount = 0;
-                let errors = [];
-
-                rules.forEach(rule => {
-                    const p1 = results.poseLandmarks[rule.joints[0]];
-                    const p2 = results.poseLandmarks[rule.joints[1]];
-                    const p3 = results.poseLandmarks[rule.joints[2]];
-                    if(p1 && p2 && p3) {
-                        const angle = calculateAngle(p1, p2, p3);
-                        if (angle < rule.min || angle > rule.max) errors.push(rule.msg);
-                        else perfectCount++;
-                    }
-                });
-
-                if (perfectCount === rules.length) {
-                    poseResultsDiv.innerHTML = `<p class="perfect">PERFECT!</p>`;
-                    autoSaveToFirebase(); 
-                } else {
-                    poseResultsDiv.innerHTML = errors.map(e => `<p class="error">${e}</p>`).join('');
-                }
-            }
-            canvasCtx.restore();
-        }
-
-        const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-        pose.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-        pose.onResults(onResults);
-
-        const camera = new Camera(videoElement, {
-            onFrame: async () => { await pose.send({image: videoElement}); },
-            // 修正：這裡不要寫死 width/height，讓它跟隨裝置
-            width: undefined, 
-            height: undefined
-        });
-        
-    </script>
 </body>
 </html>
