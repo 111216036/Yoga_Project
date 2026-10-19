@@ -86,7 +86,6 @@ let preferenceChart = null;
 // 🌟 4. 設定與動作資料庫
 // ==========================================
 const HOLD_MS = 5000;                 // 維持完美姿勢幾毫秒才算完成
-const VISIBILITY_THRESHOLD = 0.5;     // 關節可見度低於這個值就視為「看不到」
 const SPEECH_MIN_GAP = 2500;          // 兩句語音之間最短間隔 (ms)
 const SPEECH_REPEAT_GAP = 6000;       // 同一句話重複播報的最短間隔 (ms)
 const COLOR_OK = "var(--success-text, #17a35a)";
@@ -95,13 +94,6 @@ const AVATAR_FALLBACK = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><rect width='80' height='80' fill='#dfe4ea'/>"
     + "<text x='50%' y='60%' font-size='40' text-anchor='middle'>👤</text></svg>"
 );
-
-// 各動作必須「看得到」的關節編號 (MediaPipe Pose)
-// 深蹲會依左右側可見度動態決定，所以不在這裡
-const POSE_REQUIRED_JOINTS = {
-    tree: [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28],
-    Raise: [11, 12, 13, 14, 15, 16, 23, 24]
-};
 
 // 平舉判斷門檻
 const RAISE = {
@@ -143,7 +135,7 @@ const POSE_DATABASE = [
     {
         id: 'Raise',
         title: "平舉",
-        subtitle: "Lateral Raise",
+        subtitle: "Raise",
         img: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=600&q=80",
         videoUrl: "",
         desc: "平舉能增強肩膀三角肌與上肢控制力。",
@@ -487,11 +479,6 @@ function calculateAngle(a, b, c) {
     return angle;
 }
 
-// ✅ 檢查關節是否真的被相機看到（MediaPipe 看不到時也會給座標，只是用猜的）
-function allVisible(lm, indices) {
-    return indices.every(i => lm[i] && (lm[i].visibility ?? 1) >= VISIBILITY_THRESHOLD);
-}
-
 // ==========================================
 // 🌟 12. 語音提示系統
 // ==========================================
@@ -593,32 +580,10 @@ function updateHold(isPerfect, poseNameChinese) {
     return Math.ceil((HOLD_MS - held) / 1000);
 }
 
-// 關節看不到 / 沒偵測到人時的提示
-function showBodyNotVisible(mode) {
-    const msg = mode === 'Raise'
-        ? "請讓上半身（雙肩到雙手）完整入鏡"
-        : "請站到鏡頭前，讓全身入鏡";
-
-    if (mode === 'tree') {
-        setText(armStatusDiv, msg, COLOR_ERR);
-        setText(legStatusDiv, "", COLOR_ERR);
-    } else if (mode === 'squat') {
-        setText(squatStatusDiv, msg, COLOR_ERR);
-    } else if (mode === 'Raise') {
-        setText(poseResultsDiv, msg, COLOR_ERR);
-    }
-
-    setStatus('error');
-    resetHold();
-    queueHint(msg);
-}
-
 // ==========================================
 // 🌟 14. 三個動作的判斷邏輯
 // ==========================================
 function analyzeTree(lm) {
-    if (!allVisible(lm, POSE_REQUIRED_JOINTS.tree)) return showBodyNotVisible('tree');
-
     const shoulderL = lm[11], elbowL = lm[13], wristL = lm[15];
     const shoulderR = lm[12], elbowR = lm[14], wristR = lm[16];
     const hipL = lm[23], kneeL = lm[25], ankleL = lm[27];
@@ -694,7 +659,6 @@ function pickBodySide(lm) {
 function analyzeSquat(lm) {
     const side = pickBodySide(lm);
     const idx = side === 'R' ? [12, 24, 26, 28] : [11, 23, 25, 27];
-    if (!allVisible(lm, idx)) return showBodyNotVisible('squat');
 
     const [shoulder, hip, knee, ankle] = idx.map(i => lm[i]);
     const hipAngle = calculateAngle(shoulder, hip, knee);
@@ -733,8 +697,6 @@ function analyzeSquat(lm) {
 }
 
 function analyzeRaise(lm) {
-    if (!allVisible(lm, POSE_REQUIRED_JOINTS.Raise)) return showBodyNotVisible('Raise');
-
     const shoulderL = lm[11], elbowL = lm[13], wristL = lm[15];
     const shoulderR = lm[12], elbowR = lm[14], wristR = lm[16];
     const hipL = lm[23], hipR = lm[24];
@@ -826,8 +788,9 @@ function onResults(results) {
             console.warn("Pose processing error:", e);
         }
     } else {
-        // 畫面中沒有偵測到人
-        showBodyNotVisible(currentPoseMode);
+        // 畫面中沒有偵測到人：不顯示提示文字，只把計時歸零
+        resetHold();
+        setStatus('neutral');
     }
 
     flushHints();   // 這一幀的所有提示收集完畢，挑一句來念
