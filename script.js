@@ -1,3 +1,4 @@
+
 // ==========================================
 // 🌟 1. 引入 Firebase SDK
 // ==========================================
@@ -74,13 +75,12 @@ const introStartBtn = document.getElementById('intro-start-btn');
 // 上方抽屜面板元素
 const btnProfile = document.getElementById('btn-profile');
 const profileContainer = document.getElementById('profile-container');
-const toggleHistoryBtn = document.getElementById('toggle-history-btn');
-const historyContainer = document.getElementById('history-container');
+const toggleFavoritesBtn = document.getElementById('toggle-favorites-btn');
+const favoritesContainer = document.getElementById('favorites-container');
 const toggleLeaderboardBtn = document.getElementById('toggle-leaderboard-btn');
 const leaderboardContainer = document.getElementById('leaderboard-container');
 
-let myChart = null;
-let preferenceChart = null;
+let favoritesChart = null;
 
 // ==========================================
 // 🌟 4. 設定與動作資料庫
@@ -152,6 +152,18 @@ function normalizePoseName(name) {
     return name === '側平舉' ? '平舉' : name;
 }
 
+// 沿用既有紀錄，只累計三個動作成功完成的次數。
+function countPerfectPoses(querySnapshot) {
+    const poseCounts = POSE_DATABASE.map(({ title }) => ({ title, count: 0 }));
+    querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.status !== 'Perfect') return;
+        const pose = poseCounts.find(item => item.title === normalizePoseName(data.lastPose));
+        if (pose) pose.count++;
+    });
+    return poseCounts;
+}
+
 // 防止 XSS：把使用者可控的文字轉義後再放進 innerHTML
 function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, ch => ({
@@ -172,19 +184,33 @@ let isIntroActive = false;
 let pendingPose = null;
 let cameraActive = false;
 let countdownTimer = null;
+let checkInDates = new Set();
+let checkInCalendarMonth = getCheckInDateKey().slice(0, 7);
+let checkInLoadState = 'idle';
+let checkInSaveFailed = false;
+let checkInLoadVersion = 0;
+const checkInWrites = new Map();
 
 // ==========================================
 // 🌟 6. Firebase 身份驗證邏輯
 // ==========================================
 onAuthStateChanged(auth, (user) => {
     if (user) {
+        const userChanged = currentUser?.uid !== user.uid;
         currentUser = user;
+        if (userChanged) {
+            closeAllPanels();
+            resetCheckInCalendar();
+        }
+        void recordDailyCheckIn(user);
         if (loginBtn) loginBtn.style.display = 'none';
         if (startBtn) startBtn.style.display = 'block';
         if (userWelcome) userWelcome.innerText = `準備好了嗎，${user.displayName || '瑜珈夥伴'}？`;
         if (userDisplay) userDisplay.innerText = `使用者：${user.displayName || '已登入'}`;
     } else {
         currentUser = null;
+        closeAllPanels();
+        resetCheckInCalendar();
         if (loginBtn) loginBtn.style.display = 'block';
         if (startBtn) startBtn.style.display = 'none';
         if (userWelcome) userWelcome.innerText = "請先登入以記錄你的練習成果";
@@ -465,6 +491,7 @@ function showPoseUI(poseId) {
 // ==========================================
 // 🌟 11. 幾何運算
 // ==========================================
+// ✅ 修正：MediaPipe 座標是 0~1 的正規化值，x、y 的實際比例不同（800x450），
 //    必須先換成像素座標再算角度，否則角度會失真。
 function calculateAngle(a, b, c) {
     const W = canvasElement?.width || 800;
@@ -482,6 +509,7 @@ function calculateAngle(a, b, c) {
 // ==========================================
 // 🌟 12. 語音提示系統
 // ==========================================
+// 設計重點：
 // 1. 每一幀先把「這一幀的所有錯誤」收集起來 (queueHint)，幀結束時才挑一句念 (flushHints)
 // 2. 挑「最久沒念過」的那句，所以手臂和腿部的錯誤會輪流提醒，不會只念到第一個
 // 3. 同一句話有重複間隔，不會一直唸同樣的話
@@ -585,7 +613,7 @@ function resetHold() {
 // 回傳：null = 目前不是完美姿勢；0 = 已達標；正整數 = 還需維持的秒數
 function updateHold(isPerfect, poseNameChinese) {
     if (!isPerfect) {
-        resetHold();
+        resetHold();   // ✅ 三個動作都統一重置（原本深蹲漏了 hasSavedThisRep）
         return null;
     }
 
@@ -628,14 +656,14 @@ function analyzeTree(lm) {
         if (supportAngle < 150) {
             setText(legStatusDiv, `錯誤：支撐腳（${supportName}腳）請伸直！`, COLOR_ERR);
             isLegError = true;
-            queueHint("支撐腳（${supportName}腳）請伸直！");
+            queueHint("支撐腳請伸直");
         } else {
             setText(legStatusDiv, `腿部 PERFECT！(${supportName}腳站穩，${liftName}腳抬起)`, COLOR_OK);
         }
     } else {
-        setText(legStatusDiv, "請單腳站立，另一腳曲膝抬高貼於腿側", COLOR_ERR);
+        setText(legStatusDiv, "請單腳站穩，另一腳曲膝抬高貼於腿側", COLOR_ERR);
         isLegError = true;
-        queueHint("請單腳站立，另一腳曲膝抬高貼於腿側");
+        queueHint("請單腳站立，另一腳曲膝貼於腿側");
     }
 
     // ---- 手臂 ----
@@ -648,7 +676,7 @@ function analyzeTree(lm) {
 
     if (isOverhead) {
         if (leftElbowAngle < 125 || rightElbowAngle < 125) {
-            setText(armStatusDiv, "錯誤：雙手高舉時手肘請打直！", COLOR_ERR);
+            setText(armStatusDiv, "錯誤：雙手高舉時請伸直手肘！", COLOR_ERR);
             isArmError = true;
             queueHint("雙手高舉時手肘請打直");
         } else {
@@ -672,7 +700,7 @@ function analyzeTree(lm) {
     }
 }
 
-// 深蹲
+// 深蹲：自動選「比較看得清楚」的那一側來判斷（原本固定用右側）
 function pickBodySide(lm) {
     const vis = (idxs) => idxs.reduce((sum, i) => sum + (lm[i]?.visibility ?? 0), 0);
     return vis([12, 24, 26, 28]) >= vis([11, 23, 25, 27]) ? 'R' : 'L';
@@ -735,10 +763,10 @@ function analyzeRaise(lm) {
     if (leftArmRaise < RAISE.bothTooLow && rightArmRaise < RAISE.bothTooLow) {
         messages.push("請將雙臂向兩側抬起至肩膀高度");
     } else if (leftArmRaise > RAISE.tooHigh || rightArmRaise > RAISE.tooHigh) {
-        messages.push("手臂抬太高了，與肩膀平行即可");
+        messages.push("手臂抬太高囉，與肩膀平行即可");
     } else {
-        if (leftArmRaise < RAISE.minRaise) messages.push("左手再抬高一些");
-        if (rightArmRaise < RAISE.minRaise) messages.push("右手再抬高一些");
+        if (leftArmRaise < RAISE.minRaise) messages.push("左手請再抬高一些");
+        if (rightArmRaise < RAISE.minRaise) messages.push("右手請再抬高一些");
     }
 
     if (messages.length === 0) {
@@ -750,6 +778,7 @@ function analyzeRaise(lm) {
 
     if (!isPerfect) {
         if (poseResultsDiv) {
+            // pose-results 是 <span>，裡面不放 <div>，改用 <span> + <br> 換行
             poseResultsDiv.innerHTML = messages
                 .map(msg => `<span style="color: var(--error-text, #e8435a);">${msg}</span>`)
                 .join('<br>');
@@ -875,7 +904,7 @@ async function uploadScore(points) {
 // 關閉所有抽屜面板
 function closeAllPanels() {
     if (profileContainer) profileContainer.style.display = 'none';
-    if (historyContainer) historyContainer.style.display = 'none';
+    if (favoritesContainer) favoritesContainer.style.display = 'none';
     if (leaderboardContainer) leaderboardContainer.style.display = 'none';
 }
 
@@ -884,6 +913,9 @@ function closeAllPanels() {
 // ==========================================
 async function loadProfileData() {
     if (!currentUser) return;
+    const profileUser = currentUser;
+    // 簽到獨立載入，不必等待積分或練習紀錄查詢完成。
+    void loadCheckInCalendar();
 
     const nameEl = document.getElementById('profile-name');
     const avatarEl = document.getElementById('profile-avatar');
@@ -892,16 +924,17 @@ async function loadProfileData() {
     const daysCountEl = document.getElementById('profile-days-count');
     const perfectCountEl = document.getElementById('profile-perfect-count');
 
-    if (nameEl) nameEl.innerText = currentUser.displayName || '瑜珈夥伴';
+    if (nameEl) nameEl.innerText = profileUser.displayName || '瑜珈夥伴';
     if (avatarEl) {
         avatarEl.onerror = () => { avatarEl.onerror = null; avatarEl.src = AVATAR_FALLBACK; };
-        avatarEl.src = currentUser.photoURL || AVATAR_FALLBACK;
+        avatarEl.src = profileUser.photoURL || AVATAR_FALLBACK;
     }
 
     // 1. 總積分與段位
     try {
-        const userLeaderboardRef = doc(db, "leaderboard", currentUser.uid);
+        const userLeaderboardRef = doc(db, "leaderboard", profileUser.uid);
         const docSnap = await getDoc(userLeaderboardRef);
+        if (currentUser?.uid !== profileUser.uid) return;
         let currentScore = 0;
         if (docSnap.exists()) currentScore = docSnap.data().score || 0;
         if (totalScoreEl) totalScoreEl.innerText = currentScore;
@@ -926,129 +959,256 @@ async function loadProfileData() {
             }
         }
     } catch (e) {
+        if (currentUser?.uid !== profileUser.uid) return;
         console.error("讀取個人積分失敗", e);
         if (rankEl) rankEl.innerText = "🌱 瑜珈新手";
     }
 
-    // 2. 練習天數、Perfect 次數、動作偏好圓餅圖
+    // 2. 練習天數與 Perfect 次數；動作分布已移至「我的最愛」。
     try {
-        const historyRef = collection(db, "users", currentUser.uid, "history");
+        const historyRef = collection(db, "users", profileUser.uid, "history");
         const querySnapshot = await getDocs(historyRef);
+        if (currentUser?.uid !== profileUser.uid) return;
         const uniqueDates = new Set();
-        const poseCounts = { '大樹式': 0, '深蹲': 0, '平舉': 0 };
+        const poseCounts = countPerfectPoses(querySnapshot);
 
-        if (perfectCountEl) perfectCountEl.innerText = querySnapshot.size;
+        if (perfectCountEl) perfectCountEl.innerText = poseCounts.reduce((total, pose) => total + pose.count, 0);
 
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            if (data.date) uniqueDates.add(data.date);
-            const p = normalizePoseName(data.lastPose);   // 舊資料的「側平舉」會自動歸到「平舉」
-            if (poseCounts[p] !== undefined) poseCounts[p]++;
+            if (data.status === 'Perfect' && data.date) uniqueDates.add(data.date);
         });
 
         if (daysCountEl) daysCountEl.innerText = uniqueDates.size;
-        drawPreferenceChart([poseCounts['大樹式'], poseCounts['深蹲'], poseCounts['平舉']]);
     } catch (e) {
         console.error("讀取歷史分析失敗", e);
     }
 }
 
-function drawPreferenceChart(dataPoints) {
-    const chartElem = document.getElementById('posePreferenceChart');
+// 每日登入簽到獨立儲存，不從 Perfect 紀錄推測過去的登入日期。
+function getCheckInDateKey(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date);
+    const value = type => parts.find(part => part.type === type).value;
+    return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+function isValidCheckInDateKey(dateKey) {
+    if (typeof dateKey !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function resetCheckInCalendar() {
+    checkInDates = new Set();
+    checkInCalendarMonth = getCheckInDateKey().slice(0, 7);
+    checkInLoadState = 'idle';
+    checkInSaveFailed = false;
+    checkInLoadVersion++;
+    renderCheckInCalendar();
+}
+
+function recordDailyCheckIn(user = currentUser) {
+    if (!user) return Promise.resolve(false);
+    const userId = user.uid;
+    const dateKey = getCheckInDateKey();
+    const writeKey = `${userId}/${dateKey}`;
+    if (checkInWrites.has(writeKey)) return checkInWrites.get(writeKey);
+    if (currentUser?.uid === userId && checkInDates.has(dateKey)) return Promise.resolve(true);
+
+    const saveTask = Promise.resolve().then(async () => {
+        try {
+            // 日期作為文件 ID，同一天重複登入或多個分頁也只會有一筆簽到。
+            await setDoc(doc(db, 'users', userId, 'checkins', dateKey), {
+                date: dateKey,
+                timeZone: 'Asia/Taipei'
+            }, { merge: true });
+            if (currentUser?.uid === userId) {
+                checkInDates.add(dateKey);
+                checkInSaveFailed = false;
+                renderCheckInCalendar();
+            }
+            return true;
+        } catch (error) {
+            console.error('儲存登入簽到失敗', error);
+            if (currentUser?.uid === userId) {
+                checkInSaveFailed = true;
+                renderCheckInCalendar();
+            }
+            return false;
+        } finally {
+            checkInWrites.delete(writeKey);
+        }
+    });
+    checkInWrites.set(writeKey, saveTask);
+    return saveTask;
+}
+
+async function loadCheckInCalendar() {
+    if (!currentUser) return;
+    const user = currentUser;
+    const loadVersion = ++checkInLoadVersion;
+    const isCurrentRequest = () => currentUser?.uid === user.uid && loadVersion === checkInLoadVersion;
+    checkInLoadState = 'loading';
+    renderCheckInCalendar();
+    await recordDailyCheckIn(user);
+    if (!isCurrentRequest()) return;
+
+    try {
+        const snapshot = await getDocs(collection(db, 'users', user.uid, 'checkins'));
+        if (!isCurrentRequest()) return;
+        const dates = new Set();
+        snapshot.forEach(docSnap => {
+            const dateKey = docSnap.data().date;
+            if (isValidCheckInDateKey(dateKey)) dates.add(dateKey);
+        });
+        // 保留本次已確認寫入的今日簽到，即使讀取的是較早的快取。
+        const today = getCheckInDateKey();
+        if (checkInDates.has(today)) dates.add(today);
+        checkInDates = dates;
+        checkInLoadState = 'ready';
+    } catch (error) {
+        if (!isCurrentRequest()) return;
+        console.error('讀取簽到紀錄失敗', error);
+        checkInLoadState = 'error';
+    }
+    renderCheckInCalendar();
+}
+
+function changeCheckInMonth(offset) {
+    const [year, month] = checkInCalendarMonth.split('-').map(Number);
+    const date = new Date(year, month - 1 + offset, 1);
+    checkInCalendarMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    renderCheckInCalendar();
+}
+
+function renderCheckInCalendar() {
+    const grid = document.getElementById('checkin-calendar-grid');
+    const monthLabel = document.getElementById('checkin-month-label');
+    const monthCount = document.getElementById('checkin-month-count');
+    const status = document.getElementById('checkin-status');
+    if (!grid) return;
+    const [year, month] = checkInCalendarMonth.split('-').map(Number);
+    const today = getCheckInDateKey();
+    const firstWeekday = new Date(year, month - 1, 1).getDay();
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (monthLabel) monthLabel.textContent = `${year} 年 ${month} 月`;
+
+    const cells = Array.from({ length: firstWeekday }, () => '<div class="checkin-day-empty" aria-hidden="true"></div>');
+    let signedDays = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateKey = `${checkInCalendarMonth}-${String(day).padStart(2, '0')}`;
+        const checkedIn = checkInDates.has(dateKey);
+        const isToday = dateKey === today;
+        if (checkedIn) signedDays++;
+        const classes = ['checkin-day', checkedIn ? 'is-checked-in' : '', isToday ? 'is-today' : ''].filter(Boolean).join(' ');
+        const label = `${year}年${month}月${day}日${isToday ? '，今天' : ''}，${checkedIn ? '已簽到' : '未簽到'}`;
+        cells.push(`<div class="${classes}" data-date="${dateKey}" role="listitem" aria-label="${label}"${isToday ? ' aria-current="date"' : ''}>
+            <span>${day}</span>${checkedIn ? '<span class="checkin-dot" aria-hidden="true">●</span>' : ''}
+        </div>`);
+    }
+    grid.innerHTML = cells.join('');
+    if (monthCount) monthCount.textContent = checkInLoadState === 'ready' ? signedDays : '—';
+    if (status) {
+        if (checkInLoadState === 'loading') status.textContent = '正在載入簽到紀錄…';
+        else if (checkInLoadState === 'error') status.textContent = '無法載入簽到紀錄，請按「重新整理」重試。';
+        else if (checkInSaveFailed) status.textContent = '今日簽到尚未儲存，請按「重新整理」重試。';
+        else if (checkInDates.has(today)) status.textContent = '今天已自動簽到！';
+        else status.textContent = '登入後自動簽到。';
+    }
+}
+
+document.getElementById('checkin-prev-month')?.addEventListener('click', () => changeCheckInMonth(-1));
+document.getElementById('checkin-next-month')?.addEventListener('click', () => changeCheckInMonth(1));
+document.getElementById('checkin-current-month')?.addEventListener('click', () => {
+    checkInCalendarMonth = getCheckInDateKey().slice(0, 7);
+    renderCheckInCalendar();
+});
+document.getElementById('checkin-refresh-btn')?.addEventListener('click', () => { void loadCheckInCalendar(); });
+
+// ==========================================
+// 19. 我的最愛與排行榜資料讀取
+// ==========================================
+async function loadFavoritesData() {
+    if (!currentUser) return;
+    const userId = currentUser.uid;
+    const historyRef = collection(db, "users", userId, "history");
+    const summary = document.getElementById('favorites-summary');
+    const listContainer = document.getElementById('favorites-list');
+    if (summary) summary.textContent = '正在統計你的 Perfect 紀錄…';
+    if (listContainer) listContainer.innerHTML = '';
+    if (favoritesChart) {
+        favoritesChart.destroy();
+        favoritesChart = null;
+    }
+
+    try {
+        // 統計所有紀錄，不受最近 7 次或 timestamp 欄位是否存在影響。
+        const querySnapshot = await getDocs(historyRef);
+        if (currentUser?.uid !== userId) return;
+        const poseCounts = countPerfectPoses(querySnapshot).sort((a, b) => b.count - a.count);
+        const highestCount = poseCounts[0].count;
+        const favorites = poseCounts.filter(pose => pose.count === highestCount);
+
+        if (summary) {
+            if (highestCount === 0) {
+                summary.textContent = '尚無 Perfect 紀錄，完成任一動作並維持 5 秒後，就會開始累計。';
+            } else if (favorites.length === 1) {
+                summary.textContent = `最常完成：${favorites[0].title}（${highestCount} 次 Perfect）`;
+            } else {
+                summary.textContent = `並列最愛：${favorites.map(pose => pose.title).join('、')}（各 ${highestCount} 次 Perfect）`;
+            }
+        }
+
+        renderFavoritesChart(poseCounts);
+        if (listContainer) {
+            listContainer.innerHTML = poseCounts.map((pose, index) => `<li>
+                <span>${index + 1}. ${escapeHtml(pose.title)}</span>
+                <strong>${pose.count} 次 Perfect</strong>
+            </li>`).join('');
+        }
+    } catch (e) {
+        console.error("讀取我的最愛失敗", e);
+        if (currentUser?.uid !== userId) return;
+        if (summary) summary.textContent = '暫時無法載入我的最愛，請稍後重新開啟重試。';
+    }
+}
+
+function renderFavoritesChart(poseCounts) {
+    const chartElem = document.getElementById('favoritesChart');
     if (!chartElem) return;
     const ctx = chartElem.getContext('2d');
-    if (preferenceChart) preferenceChart.destroy();
-
-    const isDataEmpty = dataPoints.every(val => val === 0);
-    const renderData = isDataEmpty ? [1, 1, 1] : dataPoints;
-    const bgColors = isDataEmpty
-        ? ['#e2e8f0', '#e2e8f0', '#e2e8f0']
-        : ['#a29bfe', '#74b9ff', '#81ecec'];
-
-    preferenceChart = new Chart(ctx, {
-        type: 'doughnut',
+    if (favoritesChart) favoritesChart.destroy();
+    const colors = { '大樹式': '#a29bfe', '深蹲': '#74b9ff', '平舉': '#81ecec' };
+    favoritesChart = new Chart(ctx, {
+        type: 'bar',
         data: {
-            labels: ['大樹式', '深蹲', '平舉'],
+            labels: poseCounts.map(pose => pose.title),
             datasets: [{
-                data: renderData,
-                backgroundColor: bgColors,
-                borderWidth: 2,
-                hoverOffset: 4
+                label: 'Perfect 次數',
+                data: poseCounts.map(pose => pose.count),
+                backgroundColor: poseCounts.map(pose => colors[pose.title]),
+                borderRadius: 6
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
-                tooltip: { enabled: !isDataEmpty }
+                legend: { display: false },
+                tooltip: { callbacks: { label: context => `${context.parsed.y} 次 Perfect` } }
             },
-            cutout: '60%'
-        }
-    });
-}
-
-// ==========================================
-// 19. 歷史紀錄與排行榜資料讀取
-// ==========================================
-async function loadHistoryData() {
-    if (!currentUser) return;
-    const historyRef = collection(db, "users", currentUser.uid, "history");
-    const q = query(historyRef, orderBy("timestamp", "desc"), limit(7));
-
-    try {
-        const querySnapshot = await getDocs(q);
-        const dates = [];
-        const scores = [];
-        const listItems = [];
-
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            dates.push(data.date);
-            scores.push(data.status === 'Perfect' ? 100 : 50);
-
-            let timeString = "";
-            if (data.timestamp) {
-                const dateObj = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
-                timeString = dateObj.toLocaleTimeString('zh-TW', { hour12: false });
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: 1,
+                    ticks: { precision: 0 },
+                    title: { display: true, text: 'Perfect 次數' }
+                }
             }
-
-            listItems.push(`<li>
-                📅 ${escapeHtml(data.date)}
-                <span style="color: #747d8c; font-size: 0.85em; margin: 0 5px;">[${escapeHtml(timeString)}]</span>
-                - ${escapeHtml(normalizePoseName(data.lastPose))}: <strong style="color: var(--success-text, #17a35a);">${escapeHtml(data.status)}</strong>
-            </li>`);
-        });
-
-        renderHistoryChart(dates.reverse(), scores.reverse());
-        const listContainer = document.getElementById('history-list');
-        if (listContainer) {
-            listContainer.innerHTML = listItems.length > 0 ? listItems.join('') : '<li style="color: #999;">尚無練習紀錄</li>';
         }
-    } catch (e) {
-        console.error("讀取紀錄失敗", e);
-    }
-}
-
-function renderHistoryChart(labels, dataPoints) {
-    const chartElem = document.getElementById('historyChart');
-    if (!chartElem) return;
-    const ctx = chartElem.getContext('2d');
-    if (myChart) myChart.destroy();
-    myChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: '練習品質 (100=完美)',
-                data: dataPoints,
-                borderColor: '#4e73df',
-                backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: { scales: { y: { min: 0, max: 100 } } }
     });
 }
 
@@ -1102,12 +1262,12 @@ btnProfile?.addEventListener('click', () => {
     }
 });
 
-toggleHistoryBtn?.addEventListener('click', () => {
-    const isVisible = historyContainer?.style.display === 'block';
+toggleFavoritesBtn?.addEventListener('click', () => {
+    const isVisible = favoritesContainer?.style.display === 'block';
     closeAllPanels();
-    if (!isVisible && historyContainer) {
-        historyContainer.style.display = 'block';
-        loadHistoryData();
+    if (!isVisible && favoritesContainer) {
+        favoritesContainer.style.display = 'block';
+        loadFavoritesData();
     }
 });
 
