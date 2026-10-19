@@ -79,13 +79,13 @@
             </div>
             <div class="nav-actions">
                 <button id="btn-profile" class="nav-btn btn-purple">👤 個人中心</button>
-                <button id="toggle-history-btn" class="nav-btn btn-gray">📜 歷史紀錄</button>
+                <button id="toggle-favorites-btn" class="nav-btn btn-gray">❤️ 我的最愛</button>
                 <button id="toggle-leaderboard-btn" class="nav-btn btn-orange">🏆 全球排行榜</button>
                 <button id="logout-btn" class="nav-btn btn-danger">🚪 登出</button>
             </div>
         </header>
 
-        <!-- 彈出抽屜區塊 (個人中心 / 歷史紀錄 / 排行榜) -->
+        <!-- 彈出抽屜區塊 (個人中心 / 我的最愛 / 排行榜) -->
         <div id="overlay-panels-container">
             <!-- 個人中心 -->
             <div id="profile-container" class="dashboard-panel" style="display: none;">
@@ -103,17 +103,38 @@
                     <div class="stat-box"><div>練習天數</div><strong id="profile-days-count">0</strong></div>
                     <div class="stat-box"><div>Perfect 總數</div><strong id="profile-perfect-count">0</strong></div>
                 </div>
-                <div class="chart-wrapper" style="width: 280px; margin: 0 auto;">
-                    <canvas id="posePreferenceChart"></canvas>
-                </div>
+                <section class="checkin-section" aria-labelledby="checkin-heading">
+                    <h3 id="checkin-heading">📅 每日簽到</h3>
+                    <p class="checkin-description">每天登入自動簽到，以台北時間計算日期。</p>
+                    <div class="checkin-toolbar">
+                        <button id="checkin-prev-month" class="checkin-nav-btn" type="button" aria-label="上一個月">‹</button>
+                        <h4 id="checkin-month-label" aria-live="polite"></h4>
+                        <button id="checkin-next-month" class="checkin-nav-btn" type="button" aria-label="下一個月">›</button>
+                    </div>
+                    <div class="checkin-weekdays" aria-hidden="true">
+                        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                    </div>
+                    <div id="checkin-calendar-grid" class="checkin-calendar-grid" role="list" aria-labelledby="checkin-month-label"></div>
+                    <div class="checkin-legend"><span>● 已簽到</span><span class="checkin-today-legend">外框表示今天</span></div>
+                    <p class="checkin-month-total">本月已簽到 <strong id="checkin-month-count">—</strong> 天</p>
+                    <p id="checkin-status" class="checkin-status" role="status">登入後自動簽到。</p>
+                    <div class="checkin-actions">
+                        <button id="checkin-current-month" class="checkin-text-btn" type="button">回到本月</button>
+                        <button id="checkin-refresh-btn" class="checkin-text-btn" type="button">重新整理</button>
+                    </div>
+                </section>
             </div>
 
-            <!-- 歷史紀錄 -->
-            <div id="history-container" class="dashboard-panel" style="display: none;">
-                <h2>📊 我的練習進度 (最近 7 次)</h2>
-                <canvas id="historyChart"></canvas>
-                <h3 style="margin-top: 20px;">📜 歷史明細</h3>
-                <ul id="history-list" class="history-list"><li>載入中...</li></ul>
+            <!-- 我的最愛：依所有歷史紀錄累計各動作的 Perfect 次數 -->
+            <div id="favorites-container" class="dashboard-panel" style="display: none;">
+                <h2>❤️ 我的最愛</h2>
+                <p class="favorites-description">累計每個動作的 Perfect 次數，看看你最常完成哪個動作！</p>
+                <p id="favorites-summary" class="favorites-summary" role="status">載入中...</p>
+                <div class="chart-wrapper">
+                    <canvas id="favoritesChart" role="img" aria-label="各動作累計 Perfect 次數，詳細次數見下方列表"></canvas>
+                </div>
+                <h3>各動作累計次數</h3>
+                <ul id="favorites-list" class="favorites-list"></ul>
             </div>
 
             <!-- 全球排行榜 -->
