@@ -359,6 +359,7 @@ btnTutorial?.addEventListener('click', () => {
 // 10. 彈窗與 3 秒倒數計時
 // ==========================================
 function openPoseIntro(poseKey) {
+    stopSpeaking();      // 選擇動作時立即停止舊提示，並清空待播語音
     cancelCountdown();   // 避免連續切換時多個倒數同時跑
 
     const guide = POSE_DATABASE.find(p => p.id === poseKey);
@@ -413,7 +414,7 @@ function startCountdownForPose(poseKey) {
     overlay.style.display = 'flex';
     let count = 3;
     numberDiv.innerText = count;
-    speakHint("準備開始", { interrupt: true });
+    speakHint("準備開始", { priority: true });
 
     countdownTimer = setInterval(() => {
         count--;
@@ -422,7 +423,7 @@ function startCountdownForPose(poseKey) {
         } else {
             cancelCountdown();
             switchPose(poseKey);
-            speakHint(`開始${guide ? guide.title : poseKey}，請就定位`, { interrupt: true });
+            speakHint(`開始${guide ? guide.title : poseKey}，請就定位`, { priority: true });
         }
     }, 1000);
 }
@@ -486,23 +487,39 @@ function calculateAngle(a, b, c) {
 // 1. 每一幀先把「這一幀的所有錯誤」收集起來 (queueHint)，幀結束時才挑一句念 (flushHints)
 // 2. 挑「最久沒念過」的那句，所以手臂和腿部的錯誤會輪流提醒，不會只念到第一個
 // 3. 同一句話有重複間隔，不會一直唸同樣的話
+// 4. 等目前整句唸完才播下一句；只有切換動作或離開練習室會取消語音
 let lastSpeakTime = 0;
 const lastSpokenAt = new Map();
 let frameHints = [];
+let activeUtterance = null;
+let speechQueue = [];
 
 function stopSpeaking() {
+    // 先清空狀態，避免 cancel 觸發的舊回呼重新播放待播提示。
+    activeUtterance = null;
+    speechQueue = [];
+    frameHints = [];
+    lastSpeakTime = 0;
+    lastSpokenAt.clear();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
 function speakNow(text) {
-    if (!('speechSynthesis' in window)) return;
-
-    // 保留：先 cancel 可以解除瀏覽器語音佇列卡死的狀態
-    window.speechSynthesis.cancel();
+    if (!('speechSynthesis' in window) || activeUtterance) return;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-TW';
     utterance.rate = 1.1;
+    // 在 speak 前鎖定，包含瀏覽器尚未發出 onstart 的等待時間。
+    activeUtterance = utterance;
+    const finishSpeaking = () => {
+        // 已取消的舊語音可能延後回報結束，不得影響新動作的語音。
+        if (activeUtterance !== utterance) return;
+        activeUtterance = null;
+        if (speechQueue.length > 0) speakNow(speechQueue.shift());
+    };
+    utterance.onend = finishSpeaking;
+    utterance.onerror = finishSpeaking;
 
     const now = Date.now();
     lastSpeakTime = now;
@@ -510,12 +527,18 @@ function speakNow(text) {
     window.speechSynthesis.speak(utterance);
 }
 
-// 單句直接播報（倒數、完成、鼓勵等「一次性」語音）
-function speakHint(text, { interrupt = false } = {}) {
-    if (!interrupt) {
+// 一次性語音依序播報；重要提示略過冷卻，但仍等目前這句唸完。
+function speakHint(text, { priority = false } = {}) {
+    if (!('speechSynthesis' in window)) return;
+    if (activeUtterance?.text === text || speechQueue.includes(text)) return;
+    if (!priority) {
         const now = Date.now();
         if (now - lastSpeakTime < SPEECH_MIN_GAP) return;
         if (now - (lastSpokenAt.get(text) || 0) < SPEECH_REPEAT_GAP) return;
+    }
+    if (activeUtterance) {
+        speechQueue.push(text);
+        return;
     }
     speakNow(text);
 }
@@ -529,7 +552,8 @@ function queueHint(text) {
 function flushHints() {
     const hints = frameHints;
     frameHints = [];
-    if (hints.length === 0) return;
+    // 不累積逐幀提示；唸完後再根據最新姿勢選下一句。
+    if (hints.length === 0 || activeUtterance) return;
 
     const now = Date.now();
     if (now - lastSpeakTime < SPEECH_MIN_GAP) return;
@@ -804,7 +828,7 @@ function handlePoseSuccess(poseNameChinese) {
         saveStatusDiv.innerText = `🌟 完美${poseNameChinese}！已記錄！`;
         saveStatusDiv.style.color = COLOR_OK;
     }
-    speakHint(`太棒了！${poseNameChinese}完成！`, { interrupt: true });
+    speakHint(`太棒了！${poseNameChinese}完成！`, { priority: true });
 }
 
 // ==========================================
