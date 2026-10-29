@@ -49,11 +49,13 @@ const statusDisplay = document.getElementById("status-display");
 const poseTitle = document.getElementById("pose-title");
 const treeInfo = document.getElementById("tree-info");
 const squatInfo = document.getElementById("squat-info");
-const genericInfo = document.getElementById("generic-info");
+const raiseInfo = document.getElementById("raise-info");
+const sideStretchInfo = document.getElementById("side-stretch-info");
 const armStatusDiv = document.getElementById("arm-status");
 const legStatusDiv = document.getElementById("leg-status");
 const squatStatusDiv = document.getElementById("squat-status");
-const poseResultsDiv = document.getElementById("pose-results");
+const raiseStatusDiv = document.getElementById("raise-status");
+const sideStretchStatusDiv = document.getElementById("side-stretch-status");
 const saveStatusDiv = document.getElementById("save-status");
 
 const loginBtn = document.getElementById("login-btn");
@@ -104,7 +106,7 @@ const RAISE = {
 
 
 // ==========================================
-// 🌟 4. 原本的三個動作資料庫
+// 🌟 4. 動作資料庫
 // ==========================================
 const POSE_DATABASE = [
     {
@@ -112,7 +114,7 @@ const POSE_DATABASE = [
         title: "大樹式",
         subtitle: "Tree Pose",
         img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=600&q=80",
-        videoUrl: "https://youtube.com/shorts/jMez5L0w4yI?si=EziVERqG7C-uGJfH",
+        videoUrl: "https://www.youtube.com/embed/jMez5L0w4yI",
         desc: "大樹式能訓練下肢肌力、單腳平衡感與專注度。",
         tips: [
             "單腳伸直站穩，另一腳曲膝抬起貼於大腿或小腿內側",
@@ -125,7 +127,7 @@ const POSE_DATABASE = [
         title: "深蹲",
         subtitle: "Squat",
         img: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=600&q=80",
-        videoUrl: "https://youtube.com/shorts/PpP98TMiVKY?si=PIFfjJn1-IQ1KbSX",
+        videoUrl: "https://www.youtube.com/embed/PpP98TMiVKY",
         desc: "深蹲能強化臀大肌、股四頭肌與核心穩定度。",
         tips: [
             "雙腳與肩同寬，腳尖微外展 15-30 度",
@@ -144,6 +146,19 @@ const POSE_DATABASE = [
             "雙臂向兩側抬起與地面平行",
             "手臂全程伸直勿微彎",
             "放鬆頸部勿過度聳肩"
+        ]
+    },
+    {
+    id: "sideStretch",
+    title: "側腰拉伸",
+    subtitle: "Standing Side Stretch",
+    img: "https://3zebra.net/wp-content/uploads/2025/06/094EF940-2910-4AA4-B793-9669A64C5A70-600x600.png",
+    videoUrl: "",
+    desc: "站姿側腰拉伸：單手向上延伸，身體緩慢向另一側側彎。",
+    tips: [
+        "正面朝向鏡頭，讓雙手、髖部及雙腳完整入鏡",
+        "雙腳站穩、膝蓋自然伸直，單手向上延伸",
+        "向舉高手臂的另一側側彎，在舒適範圍內停留"
         ]
     }
 ];
@@ -459,7 +474,9 @@ function closeTutorial() {
         tutorialVideoContainer.classList.add("hidden-container");
     }
 
-    if (tutorialVideo) tutorialVideo.pause();
+    if (tutorialVideo) {
+        tutorialVideo.removeAttribute("src");
+    }
 }
 
 // 1. 監聽下拉式選單的切換
@@ -488,15 +505,17 @@ btnTutorial?.addEventListener("click", () => {
     // 檢查目前影片區塊是隱藏還是顯示狀態
     const isHidden =
         tutorialVideoContainer.classList.contains("hidden-container");
-
+    
+        // 再按一次教學，就關閉影片。
     if (!isHidden) {
-        // 如果原本已經是開啟狀態，再次點擊就會隱藏並暫停影片
         closeTutorial();
         return;
     }
 
     // 從資料庫找出目前的動作，並取得你設定的影片網址
-    const poseItem = POSE_DATABASE.find(p => p.id === selectedPoseId);
+    const poseItem = POSE_DATABASE.find(
+        p => p.id === selectedPoseId
+    );
 
     if (!poseItem?.videoUrl) {
         alert("這個動作尚未設定教學影片");
@@ -508,11 +527,13 @@ btnTutorial?.addEventListener("click", () => {
     }
 
     // 顯示影片並自動播放
-    tutorialVideoContainer.classList.remove("hidden-container");
+    const embedUrl = new URL(poseItem.videoUrl);
+    embedUrl.searchParams.set("autoplay", "1");
+    embedUrl.searchParams.set("playsinline", "1");
+    embedUrl.searchParams.set("rel", "0");
 
-    tutorialVideo.play().catch(err => {
-        console.warn("教學影片無法自動播放", err);
-    });
+    tutorialVideoContainer.classList.remove("hidden-container");
+    tutorialVideo.src = embedUrl.toString();
 });
 
 // ==========================================
@@ -630,8 +651,13 @@ function showPoseUI(poseId) {
         squatInfo.style.display = poseId === "squat" ? "block" : "none";
     }
 
-    if (genericInfo) {
-        genericInfo.style.display = poseId === "Raise" ? "block" : "none";
+     if (raiseInfo) {
+        raiseInfo.style.display = poseId === "Raise" ? "block" : "none";
+    }
+
+    if (sideStretchInfo) {
+        sideStretchInfo.style.display =
+            poseId === "sideStretch" ? "block" : "none";
     }
 
     const poseItem = POSE_DATABASE.find(p => p.id === poseId);
@@ -647,7 +673,9 @@ function showPoseUI(poseId) {
     } else if (poseId === "squat") {
         setText(squatStatusDiv, "請開始深蹲", "");
     } else if (poseId === "Raise") {
-        setText(poseResultsDiv, "請將雙臂向兩側抬起至肩膀高度", "");
+        setText(raiseStatusDiv, "請將雙臂向兩側抬起至肩膀高度", "");
+    }else if (poseId === "sideStretch") {
+    setText(raiseStatusDiv, "請正面站立，單手上舉，向另一側緩慢側彎", "");
     }
 }
 
@@ -1074,8 +1102,8 @@ function analyzeRaise(lm) {
     const isPerfect = messages.length === 0;
 
     if (!isPerfect) {
-        if (poseResultsDiv) {
-            poseResultsDiv.innerHTML = messages
+        if (raiseStatusDiv) {
+            raiseStatusDiv.innerHTML = messages
                 .map(message => `
                     <span style="color: var(--error-text, #e8435a);">
                         ${message}
@@ -1093,10 +1121,89 @@ function analyzeRaise(lm) {
     const secondsLeft = updateHold(isPerfect, "平舉");
 
     // 雙臂達到標準
-    if (isPerfect && poseResultsDiv) {
-        poseResultsDiv.innerHTML = secondsLeft > 0
+    if (isPerfect && raiseStatusDiv) {
+        raiseStatusDiv.innerHTML = secondsLeft > 0
             ? `<span style="color: var(--success-text, #17a35a); font-weight: bold;">PERFECT! 手臂維持平舉 ${secondsLeft} 秒...</span>`
             : `<span style="color: var(--success-text, #17a35a); font-weight: bold;">PERFECT! 完成！</span>`;
+    }
+}
+
+// === 〔4〕側腰拉伸：站姿、單手上舉 ===
+function analyzeSideStretch(lm) {
+    const visible = indexes => indexes.every(i => {
+        const p = lm[i];
+        return p && Number.isFinite(p.x) && Number.isFinite(p.y)
+            && (p.visibility ?? 0) >= 0.5;
+    });
+
+    if (!visible([11, 12, 23, 24, 25, 26, 27, 28])) {
+        setText(sideStretchStatusDiv, "請讓肩膀、髖部、膝蓋與雙腳完整入鏡", "");
+        setStatus("neutral");
+        updateHold(false, "側腰拉伸");
+        return;
+    }
+
+    const midpoint = (a, b) => ({
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2
+    });
+
+    const shoulders = midpoint(lm[11], lm[12]);
+    const hips = midpoint(lm[23], lm[24]);
+    const ankles = midpoint(lm[27], lm[28]);
+
+    // 比較上半身與下半身的方向，估算側彎角度。
+    const bendAngle = 180 - calculateAngle(shoulders, hips, ankles);
+    const bendX = shoulders.x - hips.x;
+
+    // 檢查側彎相反側的手臂是否上舉、伸直。
+    const raisedOuterArm = (s, e, w, h) => {
+        if (!visible([s, e, w, h])) return false;
+
+        return (lm[s].x - shoulders.x) * bendX < 0
+            && lm[w].y < lm[s].y
+            && calculateAngle(lm[h], lm[s], lm[e]) >= 140
+            && calculateAngle(lm[s], lm[e], lm[w]) >= 145;
+    };
+
+    const messages = [];
+
+    if (shoulders.y >= hips.y || hips.y >= ankles.y) {
+        messages.push("請正面站立，讓全身完整入鏡");
+    }
+
+    if (calculateAngle(lm[23], lm[25], lm[27]) < 150 ||
+        calculateAngle(lm[24], lm[26], lm[28]) < 150) {
+        messages.push("請站穩，雙膝自然伸直");
+    }
+
+    if (bendAngle < 15) {
+        messages.push("請在舒適範圍內緩慢向側邊伸展");
+    } else if (bendAngle > 40) {
+        messages.push("請稍微回正一些");
+    }
+
+    if (!raisedOuterArm(11, 13, 15, 23) &&
+        !raisedOuterArm(12, 14, 16, 24)) {
+        messages.push("請將側彎相反側的手臂向上伸直");
+    }
+
+    const isPerfect = messages.length === 0;
+    setStatus(isPerfect ? "perfect" : "error");
+
+    const secondsLeft = updateHold(isPerfect, "側腰拉伸");
+
+    if (isPerfect) {
+        setText(
+            sideStretchStatusDiv,
+            secondsLeft > 0
+                ? `PERFECT！請維持 ${secondsLeft} 秒...`
+                : "PERFECT！側腰拉伸完成！",
+            COLOR_OK
+        );
+    } else {
+        setText(sideStretchStatusDiv, messages.join("\n"), COLOR_ERR);
+        messages.forEach(queueHint);
     }
 }
 
@@ -1179,6 +1286,9 @@ function onResults(results) {
                     break;
                 case "Raise":
                     analyzeRaise(landmarks);
+                    break;
+                case "sideStretch":
+                    analyzeSideStretch(landmarks);
                     break;
             }
         } catch (error) {
@@ -1830,7 +1940,8 @@ function renderFavoritesChart(poseCounts) {
     const colors = {
         "大樹式": "#a29bfe",
         "深蹲": "#74b9ff",
-        "平舉": "#81ecec"
+        "平舉": "#81ecec",
+        "側腰拉伸": "#fab1a0"
     };
 
     favoritesChart = new Chart(ctx, {
