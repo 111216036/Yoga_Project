@@ -1,26 +1,13 @@
+// ==========================================
+// 🌟 1. 引入 Firebase SDK
+// ==========================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import {
-    getAuth,
-    signInWithPopup,
-    GoogleAuthProvider,
-    onAuthStateChanged,
-    signOut
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import {
-    getFirestore,
-    doc,
-    setDoc,
-    addDoc,
-    collection,
-    query,
-    orderBy,
-    limit,
-    getDocs,
-    increment,
-    getDoc
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth,signInWithPopup,GoogleAuthProvider,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, addDoc, collection, query, orderBy, limit, getDocs, increment, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Firebase
+// ==========================================
+// 🌟 2. Firebase 配置
+// ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyCstuIQhwz_Oxc6Q7T_9rbve8AcR6y276w",
     authDomain: "ourgoodgoodproject.firebaseapp.com",
@@ -36,17 +23,21 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// DOM
+// ==========================================
+// 3. 取得 DOM 元素
+// ==========================================
 const landingPage = document.getElementById("landing-page");
 const homeView = document.getElementById("home-view");
 const workoutView = document.getElementById("workout-view");
 const actionsGrid = document.getElementById("actions-grid");
 const btnBackHome = document.getElementById("btn-back-home");
 
+// --- 🌟 新增：左側控制區元素 ---
 const quickSwitchSelect = document.getElementById("quick-switch-select");
 const btnTutorial = document.getElementById("btn-tutorial");
 const tutorialVideoContainer = document.getElementById("tutorial-video-container");
 const tutorialVideo = document.getElementById("tutorial-video");
+// --------------------------------
 const currentWorkoutTitle = document.getElementById("current-workout-title");
 
 const videoElement = document.getElementById("video");
@@ -71,6 +62,7 @@ const logoutBtn = document.getElementById("logout-btn");
 const userWelcome = document.getElementById("user-welcome");
 const userDisplay = document.getElementById("user-display");
 
+// 彈窗相關元素
 const introModal = document.getElementById("intro-modal");
 const introTitle = document.getElementById("intro-title");
 const introVideo = document.getElementById("intro-video");
@@ -79,6 +71,7 @@ const introDesc = document.getElementById("intro-desc");
 const introTips = document.getElementById("intro-tips");
 const introStartBtn = document.getElementById("intro-start-btn");
 
+// 上方抽屜面板元素
 const btnProfile = document.getElementById("btn-profile");
 const profileContainer = document.getElementById("profile-container");
 const toggleFavoritesBtn = document.getElementById("toggle-favorites-btn");
@@ -109,13 +102,17 @@ const RAISE = {
     elbowMin: 140
 };
 
+
+// ==========================================
+// 🌟 4. 原本的三個動作資料庫
+// ==========================================
 const POSE_DATABASE = [
     {
         id: "tree",
         title: "大樹式",
         subtitle: "Tree Pose",
         img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=600&q=80",
-        videoUrl: "",
+        videoUrl: "https://youtube.com/shorts/jMez5L0w4yI?si=EziVERqG7C-uGJfH",
         desc: "大樹式能訓練下肢肌力、單腳平衡感與專注度。",
         tips: [
             "單腳伸直站穩，另一腳曲膝抬起貼於大腿或小腿內側",
@@ -128,7 +125,7 @@ const POSE_DATABASE = [
         title: "深蹲",
         subtitle: "Squat",
         img: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=600&q=80",
-        videoUrl: "",
+        videoUrl: "https://youtube.com/shorts/PpP98TMiVKY?si=PIFfjJn1-IQ1KbSX",
         desc: "深蹲能強化臀大肌、股四頭肌與核心穩定度。",
         tips: [
             "雙腳與肩同寬，腳尖微外展 15-30 度",
@@ -200,7 +197,9 @@ function withUiTimeout(operation, timeoutMs = 12000) {
         .finally(() => clearTimeout(timer));
 }
 
-// 全域狀態
+// ==========================================
+// 5. 全域狀態變數
+// ==========================================
 let currentPoseMode = "tree";
 let selectedPoseId = "tree";
 let currentUser = null;
@@ -234,7 +233,9 @@ let camera = null;
 // 未完成登入或查詢前，也先顯示完整月曆。
 renderCheckInCalendar();
 
-// 登入
+// ==========================================
+// 🌟 6. Firebase 身份驗證邏輯
+// ==========================================
 onAuthStateChanged(auth, user => {
     if (user) {
         const userChanged = currentUser?.uid !== user.uid;
@@ -296,7 +297,9 @@ logoutBtn?.addEventListener("click", () => {
     signOut(auth);
 });
 
-// 動作卡片
+// ==========================================
+// 7. 首頁動態渲染 3 個動作卡片
+// ==========================================
 function renderActionGrid() {
     if (!actionsGrid) return;
 
@@ -340,6 +343,8 @@ function enterWorkout(poseId) {
         currentWorkoutTitle.innerText = `${poseItem.title} 練習室`;
     }
 
+    // 🌟   新增：進入練習室時，讓左側下拉選單切換到正確的動作
+    // 確保選單 value 與動作 id 的大小寫一致（新版直接使用 Raise）。
     if (quickSwitchSelect) quickSwitchSelect.value = poseId;
 
     showPoseUI(poseId);
@@ -355,6 +360,7 @@ btnBackHome?.addEventListener("click", () => {
 
 function leaveWorkoutCleanup() {
     stopCamera();
+    // 新增：返回首頁時，強制關閉並暫停教學影片
     closeTutorial();
     cancelCountdown();
 
@@ -367,6 +373,10 @@ function leaveWorkoutCleanup() {
     resetHold();
 }
 
+// ==========================================
+// 12. 初始化 MediaPipe
+// ==========================================
+// 新版將原第 12 節移至此處，於開啟鏡頭時才初始化模型。
 // 鏡頭與模型
 function initializePoseTracking() {
     if (pose && camera) return;
@@ -441,7 +451,9 @@ function showCameraError(err) {
     }
 }
 
-// 動作切換與教學
+// ==========================================
+// 8.左側控制面板功能：下拉快速切換 & 教學影片
+// ==========================================
 function closeTutorial() {
     if (tutorialVideoContainer) {
         tutorialVideoContainer.classList.add("hidden-container");
@@ -450,32 +462,40 @@ function closeTutorial() {
     if (tutorialVideo) tutorialVideo.pause();
 }
 
+// 1. 監聽下拉式選單的切換
 quickSwitchSelect?.addEventListener("change", e => {
+    // 新版直接使用選單值；HTML option value 須與資料庫 id 的大小寫一致。
     const poseId = e.target.value;
     selectedPoseId = poseId;
 
+    // 更新上方的標題
     const poseItem = POSE_DATABASE.find(p => p.id === poseId);
-
     if (currentWorkoutTitle && poseItem) {
         currentWorkoutTitle.innerText = `${poseItem.title} 練習室`;
     }
 
+    // 如果教學影片正在播，切換動作時自動關閉
     closeTutorial();
     showPoseUI(poseId);
+    // 重新呼叫倒數 3 秒的引導畫面，並進行切換
     openPoseIntro(poseId);
 });
 
+// 2. 監聽「教學」按鈕的點擊
 btnTutorial?.addEventListener("click", () => {
     if (!tutorialVideoContainer || !tutorialVideo) return;
 
+    // 檢查目前影片區塊是隱藏還是顯示狀態
     const isHidden =
         tutorialVideoContainer.classList.contains("hidden-container");
 
     if (!isHidden) {
+        // 如果原本已經是開啟狀態，再次點擊就會隱藏並暫停影片
         closeTutorial();
         return;
     }
 
+    // 從資料庫找出目前的動作，並取得你設定的影片網址
     const poseItem = POSE_DATABASE.find(p => p.id === selectedPoseId);
 
     if (!poseItem?.videoUrl) {
@@ -487,6 +507,7 @@ btnTutorial?.addEventListener("click", () => {
         tutorialVideo.src = poseItem.videoUrl;
     }
 
+    // 顯示影片並自動播放
     tutorialVideoContainer.classList.remove("hidden-container");
 
     tutorialVideo.play().catch(err => {
@@ -494,6 +515,9 @@ btnTutorial?.addEventListener("click", () => {
     });
 });
 
+// ==========================================
+// 9. 彈窗與 3 秒倒數計時
+// ==========================================
 // 動作介紹與倒數
 function openPoseIntro(poseKey) {
     stopSpeaking();
@@ -627,6 +651,9 @@ function showPoseUI(poseId) {
     }
 }
 
+// ==========================================
+// 10. 幾何運算與語音提示
+// ==========================================
 // 幾何運算
 function calculateAngle(a, b, c) {
     const W = canvasElement?.width || 800;
@@ -651,6 +678,7 @@ function calculateAngle(a, b, c) {
 
 // 語音：完整唸完一句，才播放下一句。
 function stopSpeaking() {
+    // 🌟 關鍵修正：離開練習室或切換引導畫面時，清除語音與佇列，避免殘留播放狀態。
     activeUtterance = null;
     speechQueue = [];
     frameHints = [];
@@ -698,6 +726,7 @@ function speakHint(text, { priority = false } = {}) {
         return;
     }
 
+    // 檢查冷卻時間，避免同時間狂念
     if (!priority) {
         const now = Date.now();
 
@@ -770,7 +799,7 @@ function updateHold(isPerfect, poseNameChinese) {
 
     if (perfectStartTime === 0) {
         perfectStartTime = Date.now();
-        speakHint("很好，請保持");
+        speakHint("很好，請保持"); // 🌟 補上這行語音
     }
 
     const held = Date.now() - perfectStartTime;
@@ -783,7 +812,10 @@ function updateHold(isPerfect, poseNameChinese) {
     return Math.ceil((HOLD_MS - held) / 1000);
 }
 
-// 大樹式
+// ==========================================
+// 11. AI 偵測主邏輯
+// ==========================================
+// === 大樹式 ===
 function analyzeTree(lm) {
     const shoulderL = lm[11];
     const elbowL = lm[13];
@@ -830,7 +862,7 @@ function analyzeTree(lm) {
             );
 
             isLegError = true;
-            queueHint("支撐腳請伸直");
+            queueHint("支撐腳請伸直"); // 🌟 補上這行語音
         } else {
             setText(
                 legStatusDiv,
@@ -846,7 +878,7 @@ function analyzeTree(lm) {
         );
 
         isLegError = true;
-        queueHint("請單腳站立，另一腳曲膝貼於腿側");
+        queueHint("請單腳站立，另一腳曲膝貼於腿側"); // 🌟 補上這行語音
     }
 
     const leftElbowAngle =
@@ -874,7 +906,7 @@ function analyzeTree(lm) {
             );
 
             isArmError = true;
-            queueHint("雙手高舉時手肘請打直");
+            queueHint("雙手高舉時手肘請打直"); // 🌟 補上這行語音
         } else {
             setText(
                 armStatusDiv,
@@ -896,7 +928,7 @@ function analyzeTree(lm) {
         );
 
         isArmError = true;
-        queueHint("手部請舉過頭頂，或於胸前合十");
+        queueHint("手部請舉過頭頂，或於胸前合十"); // 🌟 補上這行語音
     }
 
     const isPerfect = !isArmError && !isLegError;
@@ -913,7 +945,8 @@ function analyzeTree(lm) {
     }
 }
 
-// 深蹲
+// === 深蹲 ===
+// 🌟 避免單側被鏡頭遮擋：新版依關節可見度，選擇較清楚的一側。
 function pickBodySide(lm) {
     const visibility = indexes => indexes.reduce(
         (sum, index) => sum + (lm[index]?.visibility ?? 0),
@@ -938,13 +971,15 @@ function analyzeSquat(lm) {
     const kneeAngle = calculateAngle(hip, knee, ankle);
 
     let message = "請開始深蹲";
-    let color = "";
+    let color = ""; // 預設沿用 CSS 文字色。
     let state = "neutral";
     let isPerfect = false;
 
+    // 🌟 偵測門檻：膝蓋角度小於 140 度時開始回饋（維持新版設定）。
     if (kneeAngle < 140) {
         if (kneeAngle > 110) {
             message = "再蹲低一點！";
+            // 🌟 使用警告文字色；未設定時採用 #c27803 暖色。
             color = "var(--warn-text, #c27803)";
             queueHint("再蹲低一點");
         } else if (hipAngle > 120) {
@@ -974,7 +1009,7 @@ function analyzeSquat(lm) {
     }
 }
 
-// 平舉
+// ==================== [3] 平舉 ====================
 function analyzeRaise(lm) {
     const shoulderL = lm[11];
     const elbowL = lm[13];
@@ -987,12 +1022,14 @@ function analyzeRaise(lm) {
     const hipL = lm[23];
     const hipR = lm[24];
 
+    // 1. 手肘伸直角度 (左 11-13-15, 右 12-14-16)
     const leftElbowAngle =
         calculateAngle(shoulderL, elbowL, wristL);
 
     const rightElbowAngle =
         calculateAngle(shoulderR, elbowR, wristR);
 
+    // 2. 手臂與軀幹抬起夾角 (左 23-11-13, 右 24-12-14)
     const leftArmRaise =
         calculateAngle(hipL, shoulderL, elbowL);
 
@@ -1001,6 +1038,7 @@ function analyzeRaise(lm) {
 
     const messages = [];
 
+    // 檢測雙臂是否抬至肩膀高度（新版以 RAISE 設定判斷：65° ~ 115°）。
     if (
         leftArmRaise < RAISE.bothTooLow &&
         rightArmRaise < RAISE.bothTooLow
@@ -1021,6 +1059,7 @@ function analyzeRaise(lm) {
         }
     }
 
+    // 檢測手肘是否打直
     if (messages.length === 0) {
         if (leftElbowAngle < RAISE.elbowMin) {
             messages.push("左手手肘請盡量打直");
@@ -1031,6 +1070,7 @@ function analyzeRaise(lm) {
         }
     }
 
+    // 狀態判斷與語音回饋
     const isPerfect = messages.length === 0;
 
     if (!isPerfect) {
@@ -1044,6 +1084,7 @@ function analyzeRaise(lm) {
                 .join("<br>");
         }
 
+        // 新版將錯誤訊息交由語音佇列，依冷卻時間與最近播放時間選擇提示。
         messages.forEach(queueHint);
     }
 
@@ -1051,6 +1092,7 @@ function analyzeRaise(lm) {
 
     const secondsLeft = updateHold(isPerfect, "平舉");
 
+    // 雙臂達到標準
     if (isPerfect && poseResultsDiv) {
         poseResultsDiv.innerHTML = secondsLeft > 0
             ? `<span style="color: var(--success-text, #17a35a); font-weight: bold;">PERFECT! 手臂維持平舉 ${secondsLeft} 秒...</span>`
@@ -1168,6 +1210,9 @@ function handlePoseSuccess(poseNameChinese) {
     );
 }
 
+// ==========================================
+// 13. 資料庫儲存與查詢核心
+// ==========================================
 // 練習紀錄與積分
 async function saveDailyRecord(poseType, status) {
     if (!currentUser || !canSave) return;
@@ -1225,6 +1270,7 @@ async function uploadScore(points) {
 }
 
 // 個人中心與面板
+// 關閉所有抽屜面板
 function closeAllPanels() {
     if (profileContainer) profileContainer.style.display = "none";
     if (favoritesContainer) favoritesContainer.style.display = "none";
@@ -1261,6 +1307,9 @@ function toggleDashboardPanel(panel, button, loadData) {
     void loadData();
 }
 
+// ==========================================
+// 14. 個人中心資料讀取（段位與練習統計）
+// ==========================================
 async function loadProfileData() {
     if (!currentUser) return;
 
@@ -1288,6 +1337,7 @@ async function loadProfileData() {
         avatarEl.src = profileUser.photoURL || AVATAR_FALLBACK;
     }
 
+    // 1. 讀取總積分與段位
     try {
         const userLeaderboardRef = doc(
             db,
@@ -1335,6 +1385,7 @@ async function loadProfileData() {
         if (rankEl) rankEl.innerText = "🌱 瑜珈新手";
     }
 
+    // 2. 讀取練習天數、Perfect次數（新版動作偏好統計改由「我的最愛」長條圖顯示）
     try {
         const historyRef = collection(
             db,
@@ -1656,6 +1707,9 @@ document.getElementById("checkin-refresh-btn")
         void loadCheckInCalendar();
     });
 
+// ==========================================
+// 15. 我的最愛與排行榜資料讀取
+// ==========================================
 // 我的最愛
 async function loadFavoritesData() {
     const summary = document.getElementById("favorites-summary");
@@ -1772,6 +1826,7 @@ function renderFavoritesChart(poseCounts) {
 
     if (favoritesChart) favoritesChart.destroy();
 
+    // 淺紫、淺天藍、薄荷青
     const colors = {
         "大樹式": "#a29bfe",
         "深蹲": "#74b9ff",
@@ -1883,11 +1938,12 @@ async function loadLeaderboardData() {
 }
 
 // 面板按鈕
+// 抽屜按鈕切換事件綁定
 btnProfile?.addEventListener("click", () => {
     toggleDashboardPanel(
         profileContainer,
         btnProfile,
-        loadProfileData
+        loadProfileData // 🌟 點開時立刻向 Firebase 撈取數據
     );
 });
 
@@ -1895,7 +1951,7 @@ toggleFavoritesBtn?.addEventListener("click", () => {
     toggleDashboardPanel(
         favoritesContainer,
         toggleFavoritesBtn,
-        loadFavoritesData
+        loadFavoritesData // 🌟 點開時加載「我的最愛」的歷史累計紀錄
     );
 });
 
@@ -1903,7 +1959,7 @@ toggleLeaderboardBtn?.addEventListener("click", () => {
     toggleDashboardPanel(
         leaderboardContainer,
         toggleLeaderboardBtn,
-        loadLeaderboardData
+        loadLeaderboardData // 🌟 點開時加載排行榜
     );
 });
 
@@ -1914,3 +1970,131 @@ document.getElementById("favorites-refresh-btn")
     ?.addEventListener("click", () => {
         void loadFavoritesData();
     });
+// ==========================================
+// 🌟 16. 郵件提醒功能模組 (EmailJS)
+// ==========================================
+
+// ⚠️ 請填入你從 EmailJS 複製的三個代碼：
+const EMAILJS_PUBLIC_KEY = "xfPxgJEpZ-Ur7Tq7e";
+const EMAILJS_SERVICE_ID = "service_k67ijnj";
+const EMAILJS_TEMPLATE_ID = "template_he8ob63";
+
+// 初始化套件
+if (typeof emailjs !== 'undefined') {
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+}
+
+// 取得彈窗與按鈕元素
+const btnEmailRemind = document.getElementById('btn-email-remind');
+const emailModal = document.getElementById('email-modal');
+const btnCloseEmailModal = document.getElementById('btn-close-email-modal');
+const remindEmailInput = document.getElementById('remind-email-input');
+const remindTimeInput = document.getElementById('remind-time-input');
+const btnSendTestEmail = document.getElementById('btn-send-test-email');
+const btnSaveRemind = document.getElementById('btn-save-remind');
+
+// 1. 點擊導覽列「✉️ 提醒信」按鈕打開彈窗
+btnEmailRemind?.addEventListener('click', async () => {
+    if (!currentUser) {
+        alert("請先登入帳號！");
+        return;
+    }
+
+    if (remindEmailInput) remindEmailInput.value = currentUser.email || "";
+
+    // 嘗試從 Firebase 讀取之前設定過的時間
+    try {
+        const userPrefRef = doc(db, "users", currentUser.uid);
+        const docSnap = await getDoc(userPrefRef);
+        if (docSnap.exists() && docSnap.data().remindTime) {
+            remindTimeInput.value = docSnap.data().remindTime;
+        }
+    } catch (e) {
+        console.warn("讀取時間偏好失敗:", e);
+    }
+
+    if (emailModal) emailModal.style.display = 'flex';
+});
+
+// 2. 點擊「關閉」隱藏彈窗
+btnCloseEmailModal?.addEventListener('click', () => {
+    if (emailModal) emailModal.style.display = 'none';
+});
+
+// 3. 發送信件核心函式
+async function sendWorkoutReminder(targetEmail, userName) {
+    try {
+        const templateParams = {
+            to_email: targetEmail,
+            user_name: userName || "瑜珈夥伴",
+            message: "今天還沒練習瑜珈喔！打開鏡頭練習 5 分鐘，保持身心平衡吧！"
+        };
+
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+        return true;
+    } catch (error) {
+        console.error("寄送信件失敗:", error);
+        return false;
+    }
+}
+
+// 4. 點擊「立即寄送測試信」按鈕
+btnSendTestEmail?.addEventListener('click', async () => {
+    if (!currentUser || !currentUser.email) {
+        alert("無法讀取信箱，請確認是否已登入！");
+        return;
+    }
+
+    btnSendTestEmail.innerText = "寄送中...";
+    btnSendTestEmail.disabled = true;
+
+    const isSuccess = await sendWorkoutReminder(currentUser.email, currentUser.displayName);
+
+    btnSendTestEmail.innerText = "立即寄送測試信";
+    btnSendTestEmail.disabled = false;
+
+    if (isSuccess) {
+        alert("測試信已寄出！請至信箱確認（若沒看到可檢查垃圾郵件匣）。");
+    } else {
+        alert("寄送失敗，請確認你的 EmailJS 三個金鑰是否填寫正確！");
+    }
+});
+
+// 5. 點擊「儲存設定」按鈕（記錄到 Firebase）
+btnSaveRemind?.addEventListener('click', async () => {
+    if (!currentUser) return;
+
+    const timeValue = remindTimeInput.value;
+    try {
+        const userPrefRef = doc(db, "users", currentUser.uid);
+        await setDoc(userPrefRef, {
+            email: currentUser.email,
+            remindTime: timeValue,
+            lastUpdated: new Date()
+        }, { merge: true });
+
+        alert(`已設定完成！每日 ${timeValue} 將作為你的提醒時間。`);
+        if (emailModal) emailModal.style.display = 'none';
+    } catch (e) {
+        console.error("儲存偏好失敗:", e);
+        alert("儲存設定失敗，請稍後再試。");
+    }
+});
+
+// 6. 前端定時檢查（若網頁開著，時間到自動寄信）
+setInterval(() => {
+    if (!currentUser || !remindTimeInput) return;
+
+    const now = new Date();
+    const currentHours = String(now.getHours()).padStart(2, '0');
+    const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+    const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+    const todayStr = now.toLocaleDateString();
+    const lastSentDay = localStorage.getItem('lastReminderSentDate');
+
+    if (currentTimeStr === remindTimeInput.value && lastSentDay !== todayStr) {
+        sendWorkoutReminder(currentUser.email, currentUser.displayName);
+        localStorage.setItem('lastReminderSentDate', todayStr);
+    }
+}, 60000);
