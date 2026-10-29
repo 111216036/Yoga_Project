@@ -1,22 +1,22 @@
 :root {
-    --primary-color: #8c7ae6;
-    --primary-light: #dcd6f7;
-    --secondary-color: #74b9ff;
-    --accent-pink: #fbc2eb;
-    --accent-lavender: #a6c1ee;
+    --primary-color: #8c7ae6;    /* 柔和薰衣草紫 */
+    --primary-light: #dcd6f7;    /* 淺粉紫 */
+    --secondary-color: #74b9ff;  /* 淺天空藍 */
+    --accent-pink: #fbc2eb;      /* 櫻花柔粉 */
+    --accent-lavender: #a6c1ee;  /* 柔和淺淡紫藍 */
     --pink-purple-btn: linear-gradient(135deg, #e056fd 0%, #686de0 100%);
     --blue-purple-btn: linear-gradient(135deg, #a29bfe 0%, #74b9ff 100%);
-    --error-color: #ff6b81;
-    --success-color: #2ed573;
+    --error-color: #ff6b81;       /* 柔和粉紅 */
+    --success-color: #2ed573;     /* 清新薄荷綠 */
     --error-text: #e8435a;
     --success-text: #17a35a;
     --warn-text: #c27803;
-    --bg-color: #f7f5fc;
-    --panel-color: #ffffff;
+    --bg-color: #f7f5fc;          /* 輕柔淡粉紫底色 */
+    --panel-color: #ffffff;       /* 白色卡片底色 */
     --card-bg: #ffffff;
-    --text-main: #2f3542;
-    --text-muted: #747d8c;
-    --border-color: #e2e8f0;
+    --text-main: #2f3542;          /* 主要深色文字 */
+    --text-muted: #747d8c;         /* 輔助灰色文字 */
+    --border-color: #e2e8f0;        /* 邊框色 */
 }
 
 body {
@@ -39,7 +39,9 @@ select:focus-visible {
     box-shadow: 0 0 0 3px rgba(140, 122, 230, 0.35);
 }
 
-/* 登入頁 */
+/* =====================================
+   🌟 1. 登入與封面頁 (Landing Page)
+   ===================================== */
 
 #landing-page {
     position: fixed;
@@ -61,6 +63,7 @@ select:focus-visible {
     overflow-y: auto;
 }
 
+/* 背景飄浮光暈 */
 .landing-bg-decorations {
     position: absolute;
     width: 100%;
@@ -112,6 +115,7 @@ select:focus-visible {
     }
 }
 
+/* 毛玻璃核心登入卡片 */
 .landing-glass-card {
     position: relative;
     z-index: 2;
@@ -140,6 +144,7 @@ select:focus-visible {
     }
 }
 
+/* 瑜珈呼吸動態圖示 */
 .yoga-badge-icon {
     width: 76px;
     height: 76px;
@@ -200,6 +205,7 @@ select:focus-visible {
     margin: 0 0 24px;
 }
 
+/* 特色晶片徽章 */
 .hero-features {
     display: flex;
     justify-content: center;
@@ -224,6 +230,7 @@ select:focus-visible {
     gap: 12px;
 }
 
+/* 按鈕樣式 */
 .start-btn {
     border: none;
     color: white;
@@ -272,7 +279,9 @@ select:focus-visible {
     color: #8395a7;
 }
 
-/* 首頁導覽 */
+/* =====================================
+   🌟 2. 首頁大廳 (Home View)
+   ===================================== */
 
 #home-view {
     display: flex;
@@ -280,6 +289,7 @@ select:focus-visible {
     min-height: 100vh;
 }
 
+/* 上方功能導覽條 */
 .top-navbar {
     display: flex;
     justify-content: space-between;
@@ -355,8 +365,7 @@ select:focus-visible {
     background: linear-gradient(135deg, #ff7675, #d63031);
 }
 
-/* 動作卡片 */
-
+/* 動作選單區塊 */
 .actions-section {
     padding: 40px;
     max-width: 1100px;
@@ -383,6 +392,7 @@ select:focus-visible {
     margin: 0;
 }
 
+/* 動作卡片網格 */
 .actions-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -460,8 +470,9 @@ select:focus-visible {
     border: 1px solid rgba(162, 155, 254, 0.4);
 }
 
-/* 個人中心 */
-
+/* =====================================
+   🌟 3. 抽屜展開面板區塊
+   ===================================== */
 .dashboard-panel {
     background: #ffffff;
     color: var(--text-main);
@@ -1038,7 +1049,9 @@ select:focus-visible {
     color: #4a5568;
 }
 
-/* 練習室 */
+/* =====================================
+   🌟 4. 訓練偵測室 (Workout View)
+   ===================================== */
 
 #workout-view {
     display: flex;
@@ -1053,6 +1066,7 @@ select:focus-visible {
     box-sizing: border-box;
 }
 
+/* 左側控制面板 (固定在最左側) */
 .left-control-panel {
     width: 250px;
     flex-shrink: 0;
@@ -1132,6 +1146,7 @@ select:focus-visible {
     box-shadow: 0 6px 16px rgba(116, 185, 255, 0.5);
 }
 
+/* 中央主偵測鏡頭 */
 .main-workout-area {
     display: flex;
     flex-direction: column;
@@ -1174,6 +1189,7 @@ select:focus-visible {
     object-fit: cover;
 }
 
+/* 鏡頭下方提示面板 */
 .bottom-status-display {
     margin-top: 25px;
     text-align: center;
@@ -1249,8 +1265,9 @@ select:focus-visible {
     display: none !important;
 }
 
-/* 介紹與倒數 */
-
+/* =====================================
+   🌟 5. 彈窗與倒數計時遮罩
+   ===================================== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1331,6 +1348,10 @@ select:focus-visible {
     }
 }
 
+
+/* =====================================
+   🌟 動作介紹彈窗：「我準備好了，開始倒數！」按鈕
+   ===================================== */
 #intro-start-btn {
     display: inline-block;
     width: 100%;
@@ -1348,12 +1369,14 @@ select:focus-visible {
     transition: all 0.25s ease;
 }
 
+/* 滑鼠懸停效果：上浮、光暈加深 */
 #intro-start-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 28px rgba(113, 88, 226, 0.5);
     filter: brightness(1.06);
 }
 
+/* 點擊時的下壓反饋 */
 #intro-start-btn:active {
     transform: translateY(1px);
     box-shadow: 0 4px 12px rgba(113, 88, 226, 0.4);
