@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 
     <link rel="stylesheet" href="style.css?v=20261020-ui2">
-    <script type="module" src="script.js?v=20261020-ui2"></script>
+    <script type="module" src="script.js?v=20261030-side-stretch1"></script>
     <!-- EmailJS 郵件服務 SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
@@ -294,6 +294,7 @@
                         <option value="tree">大樹式</option>
                         <option value="squat">深蹲</option>
                         <option value="Raise">平舉</option>
+                        <option value="sideStretch">側腰拉伸</option>
                     </select>
                 </div>
                 <button id="btn-tutorial" class="tutorial-btn">教學</button>
@@ -329,11 +330,16 @@
                     <span id="squat-status" class="status-value">請開始深蹲</span>
                 </div>
 
-                <div id="generic-info" class="status-content" style="display: none;">
+                <div id="raise-info" class="status-content" style="display: none;">
                     <span class="status-title">動作提示：</span>
                     <span id="pose-results" class="status-value">等待偵測...</span>
                 </div>
 
+                <div id="side-stretch-info" class="status-content" style="display: none;">
+                    <span class="status-title">側腰拉伸提示：</span>
+                    <span id="side-stretch-status" class="status-value">等待偵測...</span>
+                </div>
+                
                 <div id="save-status" class="save-status-text"></div>
             </div>
         </div>
@@ -366,7 +372,7 @@
         <div class="modal-card">
             <h2>✉️ 每日運動郵件提醒</h2>
             <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">
-                設定提醒時間，讓 AI Yoga Master 陪伴你養成規律習慣！
+                設定提醒時間，讓 Yoga Master 陪伴你養成規律習慣！
             </p>
     
             <div style="text-align: left; margin-bottom: 15px;">
