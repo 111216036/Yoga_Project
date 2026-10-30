@@ -549,7 +549,7 @@ btnTutorial?.addEventListener("click", () => {
 
     if (saveStatusDiv) {
         saveStatusDiv.innerText =
-            "觀看教學中，動作提示與計時已暫停";
+            "觀看教學中，語音提示與計時已暫停";
     }
 
     tutorialVideo.src = embedUrl.toString();
@@ -950,7 +950,7 @@ function analyzeTree(lm) {
         if (leftElbowAngle < 125 || rightElbowAngle < 125) {
             setText(
                 armStatusDiv,
-                "錯誤：雙手高舉時手肘請打直！",
+                "雙手高舉時手肘請打直！",
                 COLOR_ERR
             );
 
@@ -1020,7 +1020,7 @@ function analyzeSquat(lm) {
     const kneeAngle = calculateAngle(hip, knee, ankle);
 
     let message = "請開始深蹲";
-    let color = ""; // 預設沿用 CSS 文字色。
+    let color = COLOR_ERR;
     let state = "neutral";
     let isPerfect = false;
     if (kneeAngle >= 140) {
@@ -1101,7 +1101,7 @@ function analyzeRaise(lm) {
         leftArmRaise > RAISE.tooHigh ||
         rightArmRaise > RAISE.tooHigh
     ) {
-        messages.push("手臂抬太高囉，與肩膀平行即可");
+        messages.push("手臂抬太高了，與肩膀平行即可");
     } else {
         if (leftArmRaise < RAISE.minRaise) {
             messages.push("左手請再抬高一些");
@@ -1175,7 +1175,7 @@ function analyzeSideStretch(lm) {
     if (missingParts.length > 0) {
         setText(
             sideStretchStatusDiv,
-            `鏡頭暫時看不清：${missingParts.join("、")}。請調整距離或鏡頭角度。`,
+            `請往後腿，讓${missingParts.join("、")}完整入鏡`,
             COLOR_ERR
         );
 
@@ -1183,7 +1183,7 @@ function analyzeSideStretch(lm) {
         updateHold(false, "側腰拉伸");
 
         queueHint(
-            "請調整鏡頭或往後退一些，讓肩膀、髖部、膝蓋與雙腳完整入鏡"
+            "請往後退，讓肩膀、髖部、膝蓋與雙腳完整入鏡"
         );
 
         return;
