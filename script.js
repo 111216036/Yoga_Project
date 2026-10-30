@@ -469,6 +469,7 @@ function showCameraError(err) {
 // ==========================================
 // 8.教學影片
 // ==========================================
+// 新增：觀看教學時暫停語音與計時
 function isTutorialVisible() {
     return !!tutorialVideoContainer &&
         !tutorialVideoContainer.classList.contains("hidden-container");
@@ -545,7 +546,7 @@ btnTutorial?.addEventListener("click", () => {
     resetHold();
     setStatus("neutral");
 
-    btnTutorial.textContent = "關閉教學，繼續練習";
+    btnTutorial.textContent = "關閉教學";
 
     if (saveStatusDiv) {
         saveStatusDiv.innerText =
@@ -768,7 +769,7 @@ function speakNow(text) {
 }
 
 function speakHint(text, { priority = false } = {}) {
-    if (isTutorialVisible()) return;  //新增
+    if (isTutorialVisible()) return;  // 新增
     if (!("speechSynthesis" in window)) return;
 
     if (activeUtterance?.text === text || speechQueue.includes(text)) {
@@ -1023,6 +1024,8 @@ function analyzeSquat(lm) {
     let color = COLOR_ERR;
     let state = "neutral";
     let isPerfect = false;
+
+    // 讓深蹲在尚未下蹲時，也有字幕及語音
     if (kneeAngle >= 140) {
         message = "臀部向後坐，慢慢開始深蹲";
         queueHint(message);
@@ -1160,7 +1163,8 @@ function analyzeSideStretch(lm) {
         return p && Number.isFinite(p.x) && Number.isFinite(p.y)
             && (p.visibility ?? 0) >= 0.5;
     });
-
+    
+// 明確指出哪些部位看不清楚
     const requiredPoints = [
         [11, "左肩"], [12, "右肩"],
         [23, "左髖"], [24, "右髖"],
@@ -1345,6 +1349,7 @@ function onResults(results) {
     resetHold();
     setStatus("neutral");
 
+    // 「完全沒偵測到身體」時的提示
     const message =
         "尚未偵測到身體，請站到鏡頭中央並讓全身入鏡";
 
