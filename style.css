@@ -1680,3 +1680,88 @@ select:focus-visible {
     padding: 10px 12px;
     white-space: nowrap;
 }
+
+/* 練習室使用整個頁面的寬度 */
+#workout-view {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 20px;
+    gap: 24px;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: flex-start;
+    box-sizing: border-box;
+}
+
+/* 左側操作區 */
+#workout-view .left-control-panel {
+    width: 250px;
+    flex: 0 0 250px;
+    margin-top: 0;
+}
+
+/* 鏡頭與字幕使用剩餘寬度 */
+#workout-view .main-workout-area {
+    flex: 1 1 0;
+    min-width: 0;
+    align-items: stretch;
+}
+
+#workout-view #current-workout-title {
+    text-align: center;
+}
+
+/* 鏡頭與字幕等寬，解除原本的 800px 限制 */
+#workout-view #video-container,
+#workout-view .bottom-status-display {
+    width: 100%;
+    max-width: none;
+}
+
+/* 鏡頭維持 16:9 比例 */
+#workout-view #video-container {
+    aspect-ratio: 16 / 9;
+}
+
+#workout-view #canvas {
+    object-fit: contain;
+}
+
+/* 字幕面板的間距 */
+#workout-view .bottom-status-display {
+    margin-top: 18px;
+    padding: clamp(16px, 1.5vw, 24px);
+}
+
+/* 字幕標題隨螢幕大小調整 */
+#workout-view .status-heading {
+    font-size: clamp(1.25rem, 1.5vw, 1.8rem);
+}
+
+/* 字幕內容與長句換行 */
+#workout-view .status-content {
+    text-align: left;
+    font-size: clamp(1rem, 1.1vw, 1.2rem);
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+#workout-view .status-value {
+    font-size: clamp(1.1rem, 1.4vw, 1.6rem);
+}
+
+/* 平板與手機改成上下排列 */
+@media (max-width: 1100px) {
+    #workout-view {
+        flex-direction: column;
+        padding: 16px;
+        gap: 16px;
+    }
+
+    #workout-view .left-control-panel,
+    #workout-view .main-workout-area {
+        width: 100%;
+        flex: 0 0 auto;
+    }
+}
