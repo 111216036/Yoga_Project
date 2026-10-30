@@ -152,7 +152,7 @@ const POSE_DATABASE = [
     id: "sideStretch",
     title: "側腰拉伸",
     subtitle: "Standing Side Stretch",
-    img: "https://3zebra.net/wp-content/uploads/2025/06/094EF940-2910-4AA4-B793-9669A64C5A70-600x600.png",
+    img: "https://images.pexels.com/photos/8809597/pexels-photo-8809597.jpeg?auto=compress&cs=tinysrgb&w=600",
     videoUrl: "",
     desc: "站姿側腰拉伸：單手向上延伸，身體緩慢向另一側側彎。",
     tips: [
@@ -467,15 +467,33 @@ function showCameraError(err) {
 }
 
 // ==========================================
-// 8.左側控制面板功能：下拉快速切換 & 教學影片
+// 8.教學影片
 // ==========================================
+function isTutorialVisible() {
+    return !!tutorialVideoContainer &&
+        !tutorialVideoContainer.classList.contains("hidden-container");
+}
+
 function closeTutorial() {
+    const wasVisible = isTutorialVisible();
+
     if (tutorialVideoContainer) {
         tutorialVideoContainer.classList.add("hidden-container");
     }
 
     if (tutorialVideo) {
         tutorialVideo.removeAttribute("src");
+    }
+
+    if (btnTutorial) btnTutorial.textContent = "教學";
+
+    if (wasVisible) {
+        stopSpeaking();
+        resetHold();
+
+        if (saveStatusDiv) saveStatusDiv.innerText = "";
+
+        showPoseUI(selectedPoseId);
     }
 }
 
@@ -502,17 +520,11 @@ quickSwitchSelect?.addEventListener("change", e => {
 btnTutorial?.addEventListener("click", () => {
     if (!tutorialVideoContainer || !tutorialVideo) return;
 
-    // 檢查目前影片區塊是隱藏還是顯示狀態
-    const isHidden =
-        tutorialVideoContainer.classList.contains("hidden-container");
-    
-        // 再按一次教學，就關閉影片。
-    if (!isHidden) {
+    if (isTutorialVisible()) {
         closeTutorial();
         return;
     }
 
-    // 從資料庫找出目前的動作，並取得你設定的影片網址
     const poseItem = POSE_DATABASE.find(
         p => p.id === selectedPoseId
     );
@@ -522,17 +534,24 @@ btnTutorial?.addEventListener("click", () => {
         return;
     }
 
-    if (tutorialVideo.getAttribute("src") !== poseItem.videoUrl) {
-        tutorialVideo.src = poseItem.videoUrl;
-    }
-
-    // 顯示影片並自動播放
     const embedUrl = new URL(poseItem.videoUrl);
     embedUrl.searchParams.set("autoplay", "1");
     embedUrl.searchParams.set("playsinline", "1");
     embedUrl.searchParams.set("rel", "0");
 
     tutorialVideoContainer.classList.remove("hidden-container");
+
+    stopSpeaking();
+    resetHold();
+    setStatus("neutral");
+
+    btnTutorial.textContent = "關閉教學，繼續練習";
+
+    if (saveStatusDiv) {
+        saveStatusDiv.innerText =
+            "觀看教學中，動作提示與計時已暫停";
+    }
+
     tutorialVideo.src = embedUrl.toString();
 });
 
@@ -719,6 +738,7 @@ function stopSpeaking() {
 }
 
 function speakNow(text) {
+    if (isTutorialVisible()) return;  //新增
     if (!("speechSynthesis" in window) || activeUtterance) return;
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -748,6 +768,7 @@ function speakNow(text) {
 }
 
 function speakHint(text, { priority = false } = {}) {
+    if (isTutorialVisible()) return;  //新增
     if (!("speechSynthesis" in window)) return;
 
     if (activeUtterance?.text === text || speechQueue.includes(text)) {
@@ -901,12 +922,12 @@ function analyzeTree(lm) {
     } else {
         setText(
             legStatusDiv,
-            "請單腳站穩，另一腳曲膝抬高貼於腿側",
+            "請單腳站立，另一腳曲膝抬高貼於腿側",
             COLOR_ERR
         );
 
         isLegError = true;
-        queueHint("請單腳站立，另一腳曲膝貼於腿側"); // 🌟 補上這行語音
+        queueHint("請單腳站立，另一腳曲膝抬高貼於腿側"); // 🌟 補上這行語音
     }
 
     const leftElbowAngle =
@@ -929,7 +950,7 @@ function analyzeTree(lm) {
         if (leftElbowAngle < 125 || rightElbowAngle < 125) {
             setText(
                 armStatusDiv,
-                "錯誤：雙手高舉時請伸直手肘！",
+                "錯誤：雙手高舉時手肘請打直！",
                 COLOR_ERR
             );
 
@@ -1002,6 +1023,10 @@ function analyzeSquat(lm) {
     let color = ""; // 預設沿用 CSS 文字色。
     let state = "neutral";
     let isPerfect = false;
+    if (kneeAngle >= 140) {
+        message = "臀部向後坐，慢慢開始深蹲";
+        queueHint(message);
+    }
 
     // 🌟 偵測門檻：膝蓋角度小於 140 度時開始回饋（維持新版設定）。
     if (kneeAngle < 140) {
@@ -1136,10 +1161,31 @@ function analyzeSideStretch(lm) {
             && (p.visibility ?? 0) >= 0.5;
     });
 
-    if (!visible([11, 12, 23, 24, 25, 26, 27, 28])) {
-        setText(sideStretchStatusDiv, "請讓肩膀、髖部、膝蓋與雙腳完整入鏡", "");
+    const requiredPoints = [
+        [11, "左肩"], [12, "右肩"],
+        [23, "左髖"], [24, "右髖"],
+        [25, "左膝"], [26, "右膝"],
+        [27, "左腳踝"], [28, "右腳踝"]
+    ];
+
+    const missingParts = requiredPoints
+        .filter(([index]) => !visible([index]))
+        .map(([, name]) => name);
+
+    if (missingParts.length > 0) {
+        setText(
+            sideStretchStatusDiv,
+            `鏡頭暫時看不清：${missingParts.join("、")}。請調整距離或鏡頭角度。`,
+            COLOR_ERR
+        );
+
         setStatus("neutral");
         updateHold(false, "側腰拉伸");
+
+        queueHint(
+            "請調整鏡頭或往後退一些，讓肩膀、髖部、膝蓋與雙腳完整入鏡"
+        );
+
         return;
     }
 
@@ -1209,6 +1255,7 @@ function analyzeSideStretch(lm) {
 
 // AI 偵測主迴圈
 function onResults(results) {
+    if (!workoutView || workoutView.style.display === "none") return;  // 避免返回首頁後繼續觸發提示
     if (loadingDiv && loadingDiv.style.display !== "none") {
         loadingDiv.style.display = "none";
     }
@@ -1238,7 +1285,7 @@ function onResults(results) {
         countdownOverlay &&
         countdownOverlay.style.display === "flex";
 
-    if (isIntroActive || isCountdownActive) {
+    if (isIntroActive || isCountdownActive || isTutorialVisible()) {
         frameHints = [];
 
         if (results.poseLandmarks) {
@@ -1295,9 +1342,25 @@ function onResults(results) {
             console.warn("Pose processing error:", error);
         }
     } else {
-        resetHold();
-        setStatus("neutral");
-    }
+    resetHold();
+    setStatus("neutral");
+
+    const message =
+        "尚未偵測到身體，請站到鏡頭中央並讓全身入鏡";
+
+    const outputs = {
+        tree: [armStatusDiv, legStatusDiv],
+        squat: [squatStatusDiv],
+        Raise: [raiseStatusDiv],
+        sideStretch: [sideStretchStatusDiv]
+    };
+
+    (outputs[currentPoseMode] || []).forEach(el => {
+        setText(el, message, "");
+    });
+
+    queueHint(message);
+}
 
     flushHints();
     canvasCtx.restore();
