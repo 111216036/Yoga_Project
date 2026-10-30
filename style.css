@@ -1680,3 +1680,122 @@ select:focus-visible {
     padding: 10px 12px;
     white-space: nowrap;
 }
+
+/* 練習室：標題、鏡頭、字幕放在同一個視窗內 */
+#workout-view {
+    width: 100%;
+    max-width: none;
+
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+
+    margin: 0;
+    padding: 16px;
+    box-sizing: border-box;
+
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 20px;
+}
+
+/* 左側操作區 */
+#workout-view .left-control-panel {
+    width: 250px;
+    flex: 0 0 250px;
+    margin-top: 0;
+
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+/* 右側分成：標題、鏡頭、字幕 */
+#workout-view .main-workout-area {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 12px;
+}
+
+#workout-view #current-workout-title {
+    margin: 0;
+    text-align: center;
+    font-size: clamp(1.25rem, 2vw, 1.9rem);
+    line-height: 1.3;
+}
+
+/* 鏡頭只使用扣除標題、字幕後的剩餘高度 */
+#workout-view #video-container {
+    width: 100%;
+    max-width: none;
+
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+}
+
+/* 保持影像比例，完整顯示畫面 */
+#workout-view #canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* 字幕與鏡頭容器等寬 */
+#workout-view .bottom-status-display {
+    width: 100%;
+    max-width: none;
+    margin-top: 0;
+    padding: 12px 20px;
+}
+
+#workout-view .status-heading {
+    margin-bottom: 6px;
+    font-size: clamp(1.1rem, 1.3vw, 1.4rem);
+}
+
+#workout-view .status-content {
+    text-align: left;
+    font-size: clamp(0.9rem, 1.1vw, 1.1rem);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#workout-view .status-value {
+    font-size: clamp(1rem, 1.3vw, 1.4rem);
+}
+
+#workout-view .save-status-text {
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+#workout-view .save-status-text:empty {
+    display: none;
+}
+
+/* 較窄的視窗：操作區移到上方 */
+@media (max-width: 1100px) {
+    #workout-view {
+        flex-direction: column;
+        padding: 12px;
+        gap: 12px;
+    }
+
+    #workout-view .left-control-panel {
+        width: 100%;
+        flex: 0 0 auto;
+        max-height: 30%;
+    }
+
+    #workout-view .main-workout-area {
+        width: 100%;
+        flex: 1 1 0;
+    }
+}
